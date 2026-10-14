@@ -695,3 +695,62 @@ body { background: var(--obs-bg); }
   .sidebar .nav-key { display:none; }
   .sidebar .brand { padding-bottom:10px; }
 }
+
+
+/* V0.6 mobile layout fix: avoid implicit desktop grid tracks and sticky overlap. */
+@media (max-width: 760px) {
+  html, body, #root { width: 100%; max-width: 100%; min-width: 0; }
+  .app-shell,
+  .app-shell.immersive {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .app-shell .sidebar {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    flex: 0 0 auto;
+    z-index: 5;
+    overflow: visible;
+  }
+  .app-shell .sidebar .nav-list {
+    position: relative;
+    display: flex;
+    width: 100%;
+    z-index: 7;
+  }
+  .app-shell .sidebar .nav-item {
+    position: relative;
+    z-index: 8;
+  }
+  .app-shell .main-layout {
+    position: relative;
+    grid-column: auto;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    z-index: 1;
+  }
+  .app-shell .inspector {
+    grid-column: auto;
+    flex: 0 0 auto;
+    position: relative;
+    top: auto;
+    width: 100%;
+    height: auto;
+    min-height: 220px;
+    z-index: 1;
+  }
+  .app-shell.immersive > .sidebar,
+  .app-shell.immersive > .inspector { display: none; }
+  .app-shell .content, .app-shell .main-layout, .app-shell .topbar {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
