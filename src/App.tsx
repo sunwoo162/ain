@@ -79,7 +79,7 @@ function GraphCanvas({
     const cy = cytoscape({
       container: mount.current,
       elements: [],
-      minZoom: 0.18, maxZoom: 3.2,
+      minZoom: 0.18, maxZoom: 1.9,
       wheelSensitivity: 0.16,
       selectionType: 'single',
       boxSelectionEnabled: false,
@@ -523,7 +523,7 @@ export default function App() {
             <Layers3 size={13}/> 화면 성능 보호: {viewport.omittedNodes.toLocaleString()}개 노드 · {viewport.omittedEdges.toLocaleString()}개 연결 생략
             <span>검색하거나 관계 렌즈로 범위를 좁혀 주세요.</span>
           </div>}
-          <div className="graph-controls"><button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => cyRef.current?.zoom({ level: Math.min(3, (cyRef.current?.zoom() ?? 1) * 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomIn size={17}/></button><button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => cyRef.current?.zoom({ level: Math.max(.25, (cyRef.current?.zoom() ?? 1) / 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomOut size={17}/></button><div className="control-divider"/><button type="button" title="Fit graph" aria-label="Fit graph" onClick={() => cyRef.current?.fit(undefined, 55)}><Maximize size={17}/></button></div>
+          <div className="graph-controls"><button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => cyRef.current?.zoom({ level: Math.min(1.9, (cyRef.current?.zoom() ?? 1) * 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomIn size={17}/></button><button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => cyRef.current?.zoom({ level: Math.max(.25, (cyRef.current?.zoom() ?? 1) / 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomOut size={17}/></button><div className="control-divider"/><button type="button" title="Fit graph" aria-label="Fit graph" onClick={() => cyRef.current?.fit(undefined, 55)}><Maximize size={17}/></button></div>
           <div className="legend"><span className="legend-title">SIGNAL KEY</span><span><i className="legend-line"/> Observed</span><span><i className="legend-line dashed"/> Reported / inferred</span><span><i className="legend-line dotted"/> Manual</span></div>
         </div>}
         {(mode === 'timeline' || frame !== null) && <div className="timeline-card"><div className="timeline-label"><Clock3 size={16}/> <strong>Event replay</strong><span>{frames.length ? (currentFrame === frames.length ? 'All events' : currentFrame === 0 ? 'Before first event' : fmtDate(frames[currentFrame - 1]!)) : 'No events'}</span></div><div className="timeline-controls"><button type="button" aria-label="Previous event" onClick={() => cycleFrame(-1)} disabled={currentFrame <= 0}>‹</button><input type="range" aria-label="Event position" min="0" max={frames.length} value={currentFrame} onChange={e => setFrame(Number(e.target.value))}/><button type="button" aria-label="Next event" onClick={() => cycleFrame(1)} disabled={currentFrame >= frames.length}>›</button><button type="button" className="tiny-link" onClick={() => setFrame(null)}>Latest</button></div><small>{currentFrame} / {frames.length} events</small></div>}

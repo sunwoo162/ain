@@ -904,3 +904,9 @@ body { background: var(--obs-bg); }
   .constellation-card {transition:none}
   .constellation-card:hover {transform:none}
 }
+
+/* Prevent HUD overlap with the compact selected-node inspector in immersive mode. */
+.app-shell.immersive .semantic-zoom-hud { top: 217px; }
+@media(max-width:760px) {
+  .app-shell.immersive .semantic-zoom-hud { top: 206px; }
+}
