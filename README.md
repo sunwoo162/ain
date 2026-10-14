@@ -24,6 +24,14 @@ Explore observable AI activity as an evidence graph. A local-first, Obsidian-ins
 - Cytoscape 재사용 및 증분 갱신으로 선택/수집 시 그래프 재생성 감소
 - 자세한 내용: [V0.4 개발 문서](docs/recorded-paths.md)
 
+## V0.9 — 빠른 검색·실행 상세 분석·대용량 벤치마크
+
+- 로컬 검색 인덱스: 부분 문자열·인용구 및 조건식 `kind:model evidence:observed source:... trace:...`
+- 실행 ID가 존재하는 기록만 모아 관측·오류·응답·이벤트 시간 범위 분석
+- 합성 10,000노드·30,000연결 성능 벤치마크: `npm run bench:graph`
+- 기본 브라우저·타입·단위 테스트와 CI 벤치마크 추가
+- [V0.9 사용 및 벤치마크 가이드](docs/performance-search.md)
+
 ## V0.8 — 명시적 trace ID와 그래프 탐색 비교
 
 - **FIELD MAP 미니맵**으로 현재 화면 위치 확인 및 클릭·방향키 이동

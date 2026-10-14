@@ -18,6 +18,8 @@ import { ConstellationExplorer } from './components/ConstellationExplorer';
 import { GraphMinimap } from './components/GraphMinimap';
 import { TimelineDiff } from './components/TimelineDiff';
 import { groupByTraceId } from './domain/trace-groups';
+import { createGraphSearchIndex, searchGraphIndex } from './domain/search';
+import { TraceInsights } from './components/TraceInsights';
 import { findConnectedClusters, filterToCluster, semanticZoomLevel, type ZoomLevel } from './domain/clusters';
 import { getNeighborhoodGraph, type LensDepth } from './domain/explore';
 import { findRecordedPath, planGraphViewport, type RecordedPath } from './domain/paths';
@@ -300,7 +302,12 @@ export default function App() {
   const frames = useMemo(() => timelineFrames(workspace), [workspace]);
   const currentFrame = frame === null ? frames.length : Math.min(frame, frames.length);
   const asOf = currentFrame === frames.length ? undefined : frames[Math.max(0, currentFrame - 1)];
-  const filtered = useMemo(() => getVisibleGraph(workspace, { query, kinds, asOf }), [workspace, query, kinds, asOf]);
+  const searchIndex = useMemo(() => createGraphSearchIndex(workspace), [workspace]);
+  const searchMatches = useMemo(() => query.trim() ? searchGraphIndex(searchIndex, query) : undefined, [searchIndex, query]);
+  const filtered = useMemo(
+    () => getVisibleGraph(workspace, {query, kinds, asOf}, searchMatches),
+    [workspace, query, kinds, asOf, searchMatches],
+  );
   const clusters = useMemo(
     () => groupMode === 'trace' ? groupByTraceId(filtered) : findConnectedClusters(filtered),
     [filtered, groupMode],
@@ -519,7 +526,12 @@ export default function App() {
             setMode('graph');
           }}
         />}
-        <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input ref={searchRef} aria-label="노드 검색" placeholder="흔적, 근거, 문서 검색..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>Ctrl / ⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{viewport.graph.nodes.length} / {filtered.nodes.length} 노드</span>
+        {mode === 'graph' && activeCluster?.traceId && <TraceInsights
+          workspace={workspace}
+          traceId={activeCluster.traceId}
+          onSelect={id => { setSelected(id); setQuery(''); setKinds([...NODE_KINDS]); setFrame(null); }}
+        />}
+        <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input ref={searchRef} aria-label="노드 검색" placeholder="검색 · kind:model · evidence:observed" title="조건 검색: kind:model evidence:observed source:... trace:..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>Ctrl / ⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{viewport.graph.nodes.length} / {filtered.nodes.length} 노드</span>
         {mode !== 'library' && <div className="scope-switch" role="group" aria-label="관계 탐색 범위">
           <span className="scope-prefix"><Focus size={13}/> 관계 렌즈</span>
           {([0, 1, 2, 3] as const).map(depth => <button key={depth} type="button"
@@ -531,7 +543,12 @@ export default function App() {
             onClick={() => setLensDepth(depth)}>{depth === 0 ? '전체' : `${depth}단계`}</button>)}
         </div>}
         <span className="toolbar-separator"/><button type="button" aria-pressed={immersive} className={`btn btn-ghost focus-toggle ${immersive ? 'is-active' : ''}`} title={immersive ? 'Exit immersive mode (Esc)' : 'Enter immersive mode'} onClick={() => setImmersive(value => !value)}><Maximize size={15}/>{immersive ? 'Exit focus' : 'Immersive'}</button><span className="toolbar-separator"/><button type="button" className="icon-button" title="Show all node types" onClick={() => setKinds([...NODE_KINDS])}><Filter size={17}/></button><button type="button" className="icon-button" title="Rearrange graph" onClick={() => setLayoutKey(k => k + 1)}><SlidersHorizontal size={17}/></button><button type="button" className="icon-button" title="Restore sample graph" onClick={reset}><RotateCcw size={17}/></button></div></div>
-        {mode === 'library' ? <div className="library-view"><div className="library-header"><span>NAME</span><span>TYPE</span><span>PROVENANCE</span><span>CREATED</span></div>{filtered.nodes.map(node => <button className={`library-row ${selected === node.id ? 'selected' : ''}`} key={node.id} onClick={() => setSelected(node.id)}><span className="library-title"><span className="type-dot" style={{ backgroundColor: KIND_META[node.kind].color }}/>{node.label}</span><span>{KIND_META[node.kind].label}</span><span className={`evidence-text evidence-${node.evidence}`}>{EVIDENCE_META[node.evidence].label}</span><span>{fmtDate(node.createdAt)}</span></button>)}{!filtered.nodes.length && <div className="empty-state">No nodes match the current filters.</div>}</div> : <div className="graph-surface">
+        {mode === 'library' ? <div className="library-view"><div className="library-header"><span>NAME</span><span>TYPE</span><span>PROVENANCE</span><span>CREATED</span></div>{filtered.nodes.map(node => <button className={`library-row ${selected === node.id ? 'selected' : ''}`} key={node.id} onClick={() => setSelected(node.id)}><span className="library-title"><span className="type-dot" style={{ backgroundColor: KIND_META[node.kind].color }}/>{node.label}</span><span>{KIND_META[node.kind].label}</span><span className={`evidence-text evidence-${node.evidence}`}>{EVIDENCE_META[node.evidence].label}</span><span>{fmtDate(node.createdAt)}</span></button>)}{!filtered.nodes.length && <div className="empty-state">No nodes match the current filters.</div>}</div> : {query.trim() && <div className="advanced-search-tips" role="status">
+          <span><Search size={12}/> 검색에 일치한 노드 <strong>{searchMatches?.size ?? 0}</strong>개 · 연결된 이웃은 별도로 표시</span>
+          <code>kind:model</code><code>evidence:observed</code><code>trace:ID</code>
+          <button type="button" onClick={() => setQuery('')}>초기화</button>
+        </div>}
+        <div className="graph-surface">
           <div className="cosmos-aurora" aria-hidden="true"><div className="cosmos-ring ring-one"/><div className="cosmos-ring ring-two"/><div className="cosmos-crosshair"/></div>
           <div className="surface-top"><span className="telemetry-chip"><span className="pulse-dot"/> {liveSession ? liveState : workspace.isDemo ? 'SIMULATED CONSTELLATION' : 'PRIVATE KNOWLEDGE SPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> DRAG TO EXPLORE <span className="surface-marker">/</span> SCROLL TO ZOOM</span></div>
           <div className="surface-coordinates" aria-hidden="true"><span>疑 / EVIDENCE FIELD</span><span>{activeCluster ? 'SELECTED CONSTELLATION' : lensDepth === 0 || !canFocus ? 'GLOBAL CONSTELLATION' : `LOCAL LENS / ${lensDepth} HOPS`}</span></div>

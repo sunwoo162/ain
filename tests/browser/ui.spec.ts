@@ -174,3 +174,46 @@ test('V0.8 모바일: 미니맵과 비교 패널 가로 넘침 없이 표시',as
   await page.screenshot({path:testInfo.outputPath('uisim-timeline-diff-mobile.png'),
     fullPage:true,animations:'disabled'});
 });
+
+
+test('V0.9: 검색 문법은 정확한 모델 유형과 근거 필터로 동작',async({page},testInfo)=>{
+  await page.goto('/');
+  const search=page.getByRole('textbox',{name:'노드 검색'});
+  await search.fill('kind:model evidence:observed');
+  const tips=page.getByRole('status').filter({hasText:'검색에 일치한 노드'});
+  await expect(tips).toContainText('3');
+  await expect(page.locator('.graph-canvas')).toBeVisible();
+  await search.fill('kind:answer evidence:reported');
+  await expect(tips).toContainText('2');
+  await search.fill('"인덱스 사용 문서"');
+  await expect(tips).toContainText('1');
+  await page.screenshot({path:testInfo.outputPath('uisim-search-v09.png'),fullPage:true,animations:'disabled'});
+});
+
+test('V0.9: 명시적으로 기록된 trace ID에 대한 실행 요약과 이벤트 이동',async({page},testInfo)=>{
+  await page.addInitScript(()=>{
+    localStorage.setItem('mindtrace.workspace.v1',JSON.stringify({
+      schemaVersion:1,id:'v09-test',name:'V0.9 테스트 실행',description:'합성 테스트',isDemo:false,
+      nodes:[
+        {id:'run-p',kind:'prompt',label:'합성 요청',detail:'',createdAt:'2026-10-14T08:00:00.000Z',source:'test',evidence:'observed',traceId:'test_run_1234'},
+        {id:'run-m',kind:'model',label:'합성 모델 실행',detail:'',createdAt:'2026-10-14T08:00:01.000Z',source:'test',evidence:'observed',traceId:'test_run_1234'},
+        {id:'run-a',kind:'answer',label:'합성 응답 완료',detail:'',createdAt:'2026-10-14T08:00:03.000Z',source:'test',evidence:'observed',traceId:'test_run_1234'}
+      ],
+      edges:[
+        {id:'run-e1',source:'run-p',target:'run-m',kind:'input-to',createdAt:'2026-10-14T08:00:01.000Z',evidence:'observed',traceId:'test_run_1234'},
+        {id:'run-e2',source:'run-m',target:'run-a',kind:'produced',createdAt:'2026-10-14T08:00:03.000Z',evidence:'observed',traceId:'test_run_1234'}
+      ]
+    }));
+  });
+  await page.goto('/');
+  const groups=page.getByRole('region',{name:'연결된 실행 묶음 탐색'});
+  await groups.getByRole('button',{name:'실행 ID 기준'}).click();
+  await groups.getByRole('button',{name:/연결 묶음 1:/}).click();
+  const report=page.getByRole('region',{name:'명시적 실행 기록 분석'});
+  await expect(report).toBeVisible();
+  await expect(report).toContainText('3,000ms');
+  await expect(report).toContainText('합성 모델 실행');
+  await report.getByRole('button',{name:'실행 기록 탐색: 합성 응답 완료'}).click();
+  await expect(page.locator('.inspector-body h2')).toContainText('합성 응답 완료');
+  await page.screenshot({path:testInfo.outputPath('uisim-trace-report-v09.png'),fullPage:true,animations:'disabled'});
+});

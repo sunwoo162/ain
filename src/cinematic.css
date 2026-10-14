@@ -1007,3 +1007,94 @@ body { background: var(--obs-bg); }
 @media(prefers-reduced-motion:reduce) {
   .constellation-modes button {transition:none}
 }
+
+
+/* V0.9 — search grammar and evidence-run instrumentation. */
+.advanced-search-tips {
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 10px;
+  padding:10px 14px;border:1px solid #384b6a;border-radius:9px;
+  background:linear-gradient(110deg,#121e34,#111b2c);
+  color:#93a6c4;font-size:10px;
+}
+.advanced-search-tips>span {display:flex;align-items:center;gap:6px;margin-right:auto}
+.advanced-search-tips strong {color:#8fede0;font-weight:800}
+.advanced-search-tips code {
+  color:#c4b6ff;border:1px solid #655d9a82;padding:4px 6px;
+  border-radius:5px;background:#39325159;font-size:9px;
+}
+.advanced-search-tips button {
+  color:#b7d5f0;border-bottom:1px solid #738ca8;background:transparent;
+  font-size:10px;
+}
+.trace-insights {
+  position:relative;overflow:hidden;padding:22px 24px 20px;margin:0 0 18px;
+  border:1px solid #3e5178;border-radius:16px;
+  background:radial-gradient(ellipse at 95% 0%,#7e7bd025,transparent 55%),
+    linear-gradient(135deg,#14233d,#0e192d 66%,#111d31);
+  box-shadow:0 18px 40px #02071275,inset 0 1px #c0d9ff19;
+}
+.trace-insights-head {display:flex;justify-content:space-between;gap:16px;align-items:start}
+.trace-insights-head>div {display:grid;gap:7px}
+.trace-insights-head .eyebrow {color:#a4a3ff}
+.trace-insights-head h2 {
+  font:850 23px/1.25 'Pretendard','Apple SD Gothic Neo',sans-serif;
+  color:#eaf3ff;letter-spacing:-.8px;
+}
+.trace-insights-head h2 em {font-style:normal;color:#8de6d5}
+.trace-insights-head p {font-size:10px;color:#91a4bf;line-height:1.6}
+.trace-insights-id {
+  max-width:175px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#b0b8ff;font:750 10px ui-monospace,monospace;
+  border:1px solid #6868aa6b;border-radius:7px;padding:8px 9px;
+  background:#2d2f5755;
+}
+.trace-insights-metrics {
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:9px;margin-top:18px;
+}
+.trace-insight-metric {
+  display:grid;gap:7px;min-width:0;padding:13px 14px;
+  border:1px solid #344968;border-radius:10px;
+  background:#17263b88;
+}
+.trace-insight-metric svg {color:#8cbdde}
+.trace-insight-metric strong {font:850 23px Manrope,sans-serif;color:#e7f5ff;font-variant-numeric:tabular-nums}
+.trace-insight-metric small {font-size:9px;color:#8fa2bd}
+.trace-insights-duration {
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px;
+  padding:12px 14px;background:#0c1c2fae;border:1px solid #33506b;
+  border-radius:9px;color:#9ad9db;
+}
+.trace-insights-duration strong {font:800 14px Manrope,sans-serif;color:#c2fff4}
+.trace-insights-duration span {font-size:10px;color:#93a7bc}
+.trace-insights-events {
+  margin-top:12px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+}
+.trace-insights-events button {
+  display:flex;gap:8px;align-items:center;min-width:0;text-align:left;
+  padding:10px;border:1px solid #344c68;border-radius:8px;
+  background:#131f32;color:#e3eaf8;
+}
+.trace-insights-events button:hover {background:#273b57;border-color:#7e8dbd}
+.trace-insights-events button>span:nth-child(2) {display:grid;gap:4px;min-width:0}
+.trace-insights-events strong {font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trace-insights-events small {font-size:9px;color:#7c95b4}
+.trace-event-dot {flex:none;width:7px;height:7px;border-radius:50%;background:#91caca}
+.trace-event-dot.reported {background:#bda0ff}
+.trace-event-dot.inferred {background:#e4b86b}
+.trace-event-dot.manual {background:#e7c08d}
+.trace-insights-note,.trace-insights-more {
+  display:block;margin-top:12px;font-size:10px;color:#8a9db6;line-height:1.65;
+}
+@media(max-width:1050px) {
+  .trace-insights-events {grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px) {
+  .advanced-search-tips {gap:5px}
+  .advanced-search-tips>span {flex:1 0 100%}
+  .trace-insights {padding:17px 14px}
+  .trace-insights-head {flex-wrap:wrap}
+  .trace-insights-metrics {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .trace-insights-events {grid-template-columns:1fr}
+}

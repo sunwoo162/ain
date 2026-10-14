@@ -82,7 +82,7 @@ export function isWorkspace(value: unknown): value is Workspace {
 }
 
 /** Includes matched nodes and one-hop context; never creates inferred links. */
-export function getVisibleGraph(workspace: Workspace, options: ViewOptions) {
+export function getVisibleGraph(workspace: Workspace, options: ViewOptions, matchedIds?: ReadonlySet<string>) {
   const available = workspace.nodes.filter(node =>
     (!options.asOf || node.createdAt <= options.asOf) && options.kinds.includes(node.kind));
   const availableIds = new Set(available.map(node => node.id));
@@ -90,8 +90,9 @@ export function getVisibleGraph(workspace: Workspace, options: ViewOptions) {
     (!options.asOf || edge.createdAt <= options.asOf) &&
     availableIds.has(edge.source) && availableIds.has(edge.target));
   const normalized = options.query.trim().toLocaleLowerCase();
-  if (!normalized) return { nodes: available, edges: eligibleEdges };
+  if (!normalized && matchedIds === undefined) return { nodes: available, edges: eligibleEdges };
   const matched = new Set(available.filter(node =>
+    matchedIds !== undefined ? matchedIds.has(node.id) :
     [node.label, node.detail, node.source].some(text => text.toLocaleLowerCase().includes(normalized))).map(node => node.id));
   const shown = new Set(matched);
   for (const edge of eligibleEdges) {

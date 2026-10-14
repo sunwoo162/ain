@@ -4,8 +4,6 @@ import type { Subgraph } from './explore.ts';
 export type ConnectedCluster = {
   /** Stable identifier derived from a recorded node, not a fabricated graph entity. */
   id: string;
-  /** Present only when nodes carry a trustworthy application-generated trace ID. */
-  traceId?: string;
   label: string;
   description: string;
   nodeIds: string[];
