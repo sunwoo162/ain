@@ -8,6 +8,13 @@ Explore observable AI activity as an evidence graph. A local-first, Obsidian-ins
 
 > **Important:** MindTrace cannot read a model's private hidden thoughts. `observed` means an integration recorded an event; it does **not** mean the model relied on that event while reasoning. Demo data is synthetic.
 
+## V1.0.0 RC1 — 첫 사용 가능 버전 준비
+
+- 처음 방문자를 위한 **3단계 빠른 시작 안내**, 닫기 및 다시 열기
+- 실제 로컬 수집기·SDK·브라우저를 잇는 E2E 테스트와 인증/데이터 보존 회귀 검증
+- CI에서 전체 기능·타입·빌드·브라우저·합성 성능 검증 유지
+- **아직 정식 1.0 출시가 아닙니다.** RC1 실행·릴리스 차단 조건: [V1.0 RC1 점검표](docs/release-rc1.md)
+
 ## 주요 화면 경험
 
 - 우주 관측소 스타일의 로컬 우선 그래프, 노드와 관계의 출처 구분

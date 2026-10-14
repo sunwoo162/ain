@@ -1098,3 +1098,62 @@ body { background: var(--obs-bg); }
   .trace-insights-metrics {grid-template-columns:repeat(2,minmax(0,1fr))}
   .trace-insights-events {grid-template-columns:1fr}
 }
+
+/* V1.0 RC1 — first-use onboarding. The graph stays usable beneath the panel. */
+.quickstart {
+  position:relative;isolation:isolate;overflow:hidden;
+  margin:0 0 20px;padding:21px 24px 17px;
+  border:1px solid #6565af8f;border-radius:15px;
+  background:
+    radial-gradient(ellipse at 90% -30%,#8778e84b,transparent 57%),
+    radial-gradient(ellipse at 8% 110%,#1f9eb43b,transparent 51%),
+    linear-gradient(119deg,#1a2547,#13223c 60%,#172744);
+  box-shadow:inset 0 1px 0 #eef2ff31,0 18px 42px #04081966;
+}
+.quickstart-orbit {
+  position:absolute;width:350px;height:350px;border:1px solid #b4aeff18;border-radius:50%;
+  top:-265px;right:80px;z-index:-1;pointer-events:none;box-shadow:0 0 0 55px #b4aeff05;
+}
+.quickstart-top {display:flex;align-items:center;justify-content:space-between}
+.quickstart-top .eyebrow {color:#b7b0ff;letter-spacing:1.35px;font-size:9px}
+.quickstart-close {
+  display:grid;place-items:center;width:29px;height:29px;
+  color:#adb6d5;border:1px solid #7881aa72;border-radius:8px;background:#1b2640;
+}
+.quickstart-close:hover {color:white;border-color:#a5b1ea}
+.quickstart-message {display:grid;gap:7px;margin:6px 0 17px}
+.quickstart-message h2 {
+  font:850 clamp(20px,2.3vw,27px)/1.3 'Pretendard','Apple SD Gothic Neo',sans-serif;
+  letter-spacing:-.8px;color:#f1f4ff;word-break:keep-all;
+}
+.quickstart-message h2 em {font-style:normal;color:#a8f1eb}
+.quickstart-message p {font-size:11px;color:#bac4df;line-height:1.6;word-break:keep-all}
+.quickstart-actions {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.quickstart-action {
+  display:flex;align-items:center;gap:11px;min-width:0;text-align:left;
+  padding:13px 12px;border:1px solid #4c6084a8;border-radius:10px;
+  background:#142342d9;color:#9cb3e2;
+  transition:border-color .15s,background .15s;
+}
+.quickstart-action.primary {border-color:#8a8bde;background:linear-gradient(120deg,#3d4f85,#28446a)}
+.quickstart-action:hover {border-color:#a1b4ef;background:#2a3d62}
+.quickstart-action span {display:grid;gap:5px;flex:1;min-width:0}
+.quickstart-action strong {color:#f2f4ff;font-size:11px}
+.quickstart-action small {color:#9baac9;font-size:9px}
+.quickstart-action>svg:last-child {color:#c4d4fa;flex:none}
+.quickstart-privacy {
+  display:flex;align-items:center;gap:7px;margin:13px 0 0;
+  font-size:9px;color:#93b3c9;line-height:1.55;
+}
+@media(max-width:900px) {
+  .quickstart-actions {grid-template-columns:1fr}
+  .quickstart-action {min-height:52px}
+}
+@media(max-width:760px) {
+  .quickstart {padding:16px 13px}
+  .quickstart-privacy {align-items:start}
+  .quickstart-privacy svg {flex:none;margin-top:1px}
+}
+@media(prefers-reduced-motion:reduce) {
+  .quickstart-action {transition:none}
+}

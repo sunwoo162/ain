@@ -20,6 +20,7 @@ import { TimelineDiff } from './components/TimelineDiff';
 import { groupByTraceId } from './domain/trace-groups';
 import { createGraphSearchIndex, searchGraphIndex } from './domain/search';
 import { TraceInsights } from './components/TraceInsights';
+import { QuickStart } from './components/QuickStart';
 import { findConnectedClusters, filterToCluster, semanticZoomLevel, type ZoomLevel } from './domain/clusters';
 import { getNeighborhoodGraph, type LensDepth } from './domain/explore';
 import { findRecordedPath, planGraphViewport, type RecordedPath } from './domain/paths';
@@ -268,6 +269,15 @@ export default function App() {
   const [liveSession, setLiveSession] = useState<{ url: string; token: string } | null>(null);
   const [liveState, setLiveState] = useState('연결 안 됨');
   const [providerHelpOpen, setProviderHelpOpen] = useState(false);
+  const [showQuickStart, setShowQuickStart] = useState(() => {
+    try { return localStorage.getItem('uisim.quickstart.dismissed.v1') !== 'yes'; }
+    catch { return true; }
+  });
+  const dismissQuickStart = () => {
+    setShowQuickStart(false);
+    try { localStorage.setItem('uisim.quickstart.dismissed.v1', 'yes'); }
+    catch { /* Private browsing may disable storage. Guide remains dismissible. */ }
+  };
   const cyRef = useRef<Core | null>(null);
   const [graphCore, setGraphCore] = useState<Core | null>(null);
   const handleGraphReady = useCallback((engine: Core | null) => setGraphCore(engine), []);
@@ -488,9 +498,20 @@ export default function App() {
     </aside>
 
     <div className="main-layout">
-      <header className="topbar"><div className="crumbs"><span>Workspace</span><ChevronRight size={15}/><strong>{mode === 'graph' ? 'Graph explorer' : mode === 'timeline' ? 'Timeline' : 'Node library'}</strong></div><div className="header-actions"><span className="autosave"><span className="status-dot" /> Saved locally</span><span className="header-divider"/><button type="button" className="btn btn-ghost" onClick={() => liveSession ? disconnectLive() : setLiveOpen(true)} title={liveSession ? 'Disconnect local collector' : 'Connect local AI collector'}><Radio size={15}/>{liveSession ? 'Disconnect' : 'Live connect'}</button><button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Import a MindTrace JSON workspace"><Upload size={16}/> Import</button><button type="button" className="btn btn-ghost" onClick={exportGraph}><ArrowDownToLine size={16}/> Export</button><button type="button" className="btn btn-primary" onClick={() => setEditorOpen(true)}><Plus size={16}/> New note</button></div></header>
+      <header className="topbar"><div className="crumbs"><span>Workspace</span><ChevronRight size={15}/><strong>{mode === 'graph' ? 'Graph explorer' : mode === 'timeline' ? 'Timeline' : 'Node library'}</strong></div><div className="header-actions"><span className="autosave"><span className="status-dot" /> Saved locally</span><span className="header-divider"/><button type="button" className="btn btn-ghost" onClick={() => setShowQuickStart(true)} title="첫 사용 가이드 열기" aria-label="시작 가이드">시작 가이드</button><button type="button" className="btn btn-ghost" onClick={() => liveSession ? disconnectLive() : setLiveOpen(true)} title={liveSession ? 'Disconnect local collector' : 'Connect local AI collector'}><Radio size={15}/>{liveSession ? 'Disconnect' : 'Live connect'}</button><button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Import a MindTrace JSON workspace"><Upload size={16}/> Import</button><button type="button" className="btn btn-ghost" onClick={exportGraph}><ArrowDownToLine size={16}/> Export</button><button type="button" className="btn btn-primary" onClick={() => setEditorOpen(true)}><Plus size={16}/> New note</button></div></header>
       <main className="content">
         <div className="page-heading"><div className="hero-copy"><div className="eyebrow"><Sparkles size={13}/> 의심암귀 · THE OBSERVATORY <span className="eyebrow-divider"/> <span>疑心暗鬼 / LOCAL-FIRST</span></div><h1>{mode === 'graph' ? <>모든 답변에는 <em>흔적이 있다.</em></> : mode === 'timeline' ? <>흔적을 따라 <em>시간 속으로.</em></> : <>노드 하나까지 <em>의심하라.</em></>}</h1><p>{mode === 'graph' ? 'AI가 남긴 관측 가능한 실행과 근거를 하나의 지식 우주에서 탐험하세요.' : mode === 'timeline' ? '기록된 실행을 되짚어 보세요. 관측된 이벤트를 숨겨진 내부 사고와 혼동하지 않습니다.' : '기록과 근거, 메모리와 모델 호출, 연결 관계까지 한곳에서 확인하세요.'}</p></div><div className="heading-meta"><div><span className="metric-label">01 / SIGNALS</span><strong>{workspace.nodes.length.toLocaleString()}</strong><small>기록된 노드</small></div><div><span className="metric-label">02 / PATHWAYS</span><strong>{workspace.edges.length.toLocaleString()}</strong><small>연결된 관계</small></div><div className="metric-status"><span className="metric-label">03 / ORIGIN</span><strong><span className="metric-live-dot"/> {liveSession ? 'LIVE' : 'LOCAL'}</strong><small>{liveSession ? 'Collector linked' : 'Private workspace'}</small></div></div></div>
+        {showQuickStart && <QuickStart
+          isDemo={workspace.isDemo}
+          onDemo={() => {
+            dismissQuickStart(); setMode('graph'); setFrame(null); setQuery('');
+            setSelected(workspace.nodes[0]?.id ?? null); setClusterId(null);
+            setLensDepth(0);
+          }}
+          onConnect={() => { dismissQuickStart(); setLiveOpen(true); }}
+          onGuide={() => { dismissQuickStart(); setProviderHelpOpen(true); }}
+          onDismiss={dismissQuickStart}
+        />}
         <div className="provider-telemetry" aria-label="AI 제공자 실행 기록">
           <div className="provider-heading"><span className="eyebrow">CONNECTED INTELLIGENCE</span><strong>실제 AI 실행 신호</strong><small>명시적으로 관측한 호출만 표시해요.</small></div>
           <div className="provider-entries">

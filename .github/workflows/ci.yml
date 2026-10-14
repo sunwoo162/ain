@@ -3,6 +3,8 @@ on:
   pull_request:
   push:
     branches: [main]
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -13,6 +15,7 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run test
+      - run: npm run smoke:release
       - run: npm run bench:graph
       - run: npm run typecheck
       - run: npm run build
