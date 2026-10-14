@@ -107,7 +107,7 @@ function GraphCanvas({
           'border-color': '#eafcff', 'border-width': 4, 'background-color': 'data(color)', opacity: 1, 'overlay-opacity': 0.1,
         } },
         { selector: 'edge.connected', style: { opacity: 1, width: 2.2, 'line-color': '#9acbfa', 'target-arrow-color': '#9acbfa' } },
-      ]
+      ],
       layout: { name: 'preset' },
     });
     cyRef.current = cy;
