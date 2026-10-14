@@ -29,4 +29,5 @@ jobs:
           path: |
             test-results/
             playwright-report/
+            package-lock.json
           if-no-files-found: ignore
