@@ -1,20 +1,20 @@
-## Summary
-<!-- What and why? -->
+## 변경 목적
+<!-- 어떤 문제를 해결하고 왜 이 변경이 필요한지 작성해 주세요. -->
 
-## Changes
-<!-- Group observable behavior and source changes. -->
+## 주요 변경 사항
+<!-- 사용자에게 보이는 변화와 주요 코드 변경을 정리해 주세요. -->
 
-## Verification
+## 검증 결과
 - [ ] `npm run test`
 - [ ] `npm run typecheck`
 - [ ] `npm run build`
-- [ ] Manual keyboard / pointer check
+- [ ] 브라우저에서 마우스·키보드 동작 확인
 
-## Evidence & limitations
-<!-- Are event origins verified or inferred? What remains unsupported? -->
+## 근거 및 제한 사항
+<!-- 실제 관측된 사실과 AI가 추정한 내용을 구분하고, 아직 지원하지 않는 기능을 작성해 주세요. -->
 
-## Checklist
-- [ ] Conventional Commit PR title (`feat:`, `fix:`, etc.)
-- [ ] No secrets, access tokens or private conversation content
-- [ ] Observable facts are not presented as hidden chain-of-thought
-- [ ] Added/updated tests and documentation if relevant
+## 체크리스트
+- [ ] PR 제목은 `feat: 그래프 시각화 구현`처럼 유형 접두사는 영어, 설명은 한국어로 작성
+- [ ] 비밀키·액세스 토큰·개인 대화 내용이 포함되지 않았는지 확인
+- [ ] 관측된 기록을 모델의 비공개 내부 추론으로 표현하지 않았는지 확인
+- [ ] 변경과 관련된 테스트 및 문서를 추가하거나 갱신
