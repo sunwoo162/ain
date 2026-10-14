@@ -122,6 +122,18 @@ test('V0.8: 미니맵으로 실제 그래프 카메라 이동, 묶음 기준 전
   const minimap=page.locator('.graph-minimap canvas');
   await expect(minimap).toBeVisible();
   await expect(minimap).toHaveAttribute('role','button');
+  await expect(page.locator('.minimap-top')).toContainText('CLICK TO NAVIGATE');
+  const renderedDots = await minimap.evaluate(element => {
+    const canvas = element as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d')!;
+    const pixels = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    let colored=0;
+    for(let i=0;i<pixels.length;i+=4) {
+      if(pixels[i]! > 90 && pixels[i+1]! > 90 && pixels[i+2]! > 110) colored++;
+    }
+    return colored;
+  });
+  expect(renderedDots).toBeGreaterThan(5);
   const navigator=page.getByRole('region',{name:'연결된 실행 묶음 탐색'});
   const mode=navigator.getByRole('group',{name:'기록 묶음 기준'});
   await mode.getByRole('button',{name:'실행 ID 기준'}).click();

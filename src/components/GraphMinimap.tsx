@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject, type MouseEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type KeyboardEvent } from 'react';
 import type { Core } from 'cytoscape';
 
 type Projection = { minX:number; minY:number; factor:number; offsetX:number; offsetY:number; w:number; h:number };
 const WIDTH=188, HEIGHT=122;
 
 /** A lightweight canvas overview of the *visible* Cytoscape nodes. No extra graph engine. */
-export function GraphMinimap({cyRef, graphRevision}:{
-  cyRef:MutableRefObject<Core|null>;
+export function GraphMinimap({cy, graphRevision}:{
+  cy:Core|null;
   graphRevision:unknown;
 }) {
   const canvas=useRef<HTMLCanvasElement>(null);
   const projection=useRef<Projection|null>(null);
   const [ready,setReady]=useState(false);
   const repaint=useCallback(()=>{
-    const cy=cyRef.current,element=canvas.current;
+    const element=canvas.current;
     if (!cy || !element || cy.destroyed()) return;
     const ctx=element.getContext('2d');
     if (!ctx) return;
@@ -55,10 +55,9 @@ export function GraphMinimap({cyRef, graphRevision}:{
     ctx.fillStyle='rgba(157,155,250,.10)';
     ctx.strokeStyle='#b2adff';ctx.lineWidth=1.25;
     ctx.fillRect(viewX,viewY,viewW,viewH);ctx.strokeRect(viewX,viewY,viewW,viewH);
-  },[cyRef]);
+  },[cy]);
 
   useEffect(()=>{
-    const cy=cyRef.current;
     if (!cy) return;
     let frame=0;
     const schedule=()=>{if(!frame)frame=requestAnimationFrame(()=>{frame=0;repaint();});};
@@ -68,10 +67,10 @@ export function GraphMinimap({cyRef, graphRevision}:{
       cy.off('pan zoom layoutstop add remove position resize',schedule);
       if(frame)cancelAnimationFrame(frame);
     };
-  },[cyRef,graphRevision,repaint]);
+  },[cy,graphRevision,repaint]);
 
   const focus=(x:number,y:number)=>{
-    const cy=cyRef.current,p=projection.current;
+    const p=projection.current;
     if(!cy||!p)return;
     const worldX=p.minX+(x-p.offsetX)/p.factor;
     const worldY=p.minY+(y-p.offsetY)/p.factor;
@@ -83,7 +82,6 @@ export function GraphMinimap({cyRef, graphRevision}:{
     focus((event.clientX-rect.left)*WIDTH/rect.width,(event.clientY-rect.top)*HEIGHT/rect.height);
   };
   const keyboard=(event:KeyboardEvent<HTMLCanvasElement>)=>{
-    const cy=cyRef.current;
     if(!cy)return;
     const step=30;
     const pans:Record<string,[number,number]>={

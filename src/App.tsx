@@ -50,12 +50,13 @@ type GraphCanvasProps = {
   path: RecordedPath | null;
   onSelect: (id: string | null) => void;
   onZoomTier: (tier: ZoomLevel) => void;
+  onReady: (engine: Core | null) => void;
   cyRef: MutableRefObject<Core | null>;
   layoutKey: number;
 };
 
 function GraphCanvas({
-  nodes, edges, selected, path, onSelect, onZoomTier, cyRef, layoutKey,
+  nodes, edges, selected, path, onSelect, onZoomTier, onReady, cyRef, layoutKey,
 }: GraphCanvasProps) {
   const mount = useRef<HTMLDivElement>(null);
   const selectHandler = useRef(onSelect);
@@ -135,6 +136,7 @@ function GraphCanvas({
       layout: { name: 'preset' },
     });
     cyRef.current = cy;
+    onReady(cy);
     cy.on('tap', 'node', event => selectHandler.current(event.target.id()));
     cy.on('tap', event => { if (event.target === cy) selectHandler.current(null); });
     const syncZoom = () => {
@@ -153,9 +155,10 @@ function GraphCanvas({
     return () => {
       observer.disconnect();
       if (cyRef.current === cy) cyRef.current = null;
+      onReady(null);
       cy.destroy();
     };
-  }, [cyRef]);
+  }, [cyRef, onReady]);
 
   // Patch only changed graph elements; a selection or path highlight does not
   // recreate the engine or run force-layout. Large graphs get a bounded layout.
@@ -264,6 +267,8 @@ export default function App() {
   const [liveState, setLiveState] = useState('연결 안 됨');
   const [providerHelpOpen, setProviderHelpOpen] = useState(false);
   const cyRef = useRef<Core | null>(null);
+  const [graphCore, setGraphCore] = useState<Core | null>(null);
+  const handleGraphReady = useCallback((engine: Core | null) => setGraphCore(engine), []);
   // Fit only when changing presentation modes, not on every live graph update.
   // A full-width immersive canvas otherwise inherits the old narrow camera.
   useEffect(() => {
@@ -530,14 +535,14 @@ export default function App() {
           <div className="cosmos-aurora" aria-hidden="true"><div className="cosmos-ring ring-one"/><div className="cosmos-ring ring-two"/><div className="cosmos-crosshair"/></div>
           <div className="surface-top"><span className="telemetry-chip"><span className="pulse-dot"/> {liveSession ? liveState : workspace.isDemo ? 'SIMULATED CONSTELLATION' : 'PRIVATE KNOWLEDGE SPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> DRAG TO EXPLORE <span className="surface-marker">/</span> SCROLL TO ZOOM</span></div>
           <div className="surface-coordinates" aria-hidden="true"><span>疑 / EVIDENCE FIELD</span><span>{activeCluster ? 'SELECTED CONSTELLATION' : lensDepth === 0 || !canFocus ? 'GLOBAL CONSTELLATION' : `LOCAL LENS / ${lensDepth} HOPS`}</span></div>
-          <GraphMinimap cyRef={cyRef} graphRevision={viewport.graph}/>
+          <GraphMinimap cy={graphCore} graphRevision={viewport.graph}/>
           <div className="semantic-zoom-hud" role="status" aria-label="그래프 확대 단계">
             <span className={`semantic-led ${zoomTier}`}/>
             <strong>{zoomTier === 'overview' ? '은하 조망' : zoomTier === 'detail' ? '세부 분석' : '관계 탐색'}</strong>
             <small>{zoomTier === 'overview' ? '중요 노드 중심 표시' : zoomTier === 'detail' ? '모든 노드 제목 표시' : '연결 구조 탐색'}</small>
           </div>
           {viewport.graph.nodes.length ? <GraphCanvas nodes={viewport.graph.nodes} edges={viewport.graph.edges}
-            selected={selected} path={recordedPath} onSelect={setSelected} onZoomTier={setZoomTier} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
+            selected={selected} path={recordedPath} onSelect={setSelected} onZoomTier={setZoomTier} onReady={handleGraphReady} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
           {immersive && selectedNode && <div className="immersive-node-panel" aria-live="polite"><span className="inspector-caption">SELECTED SIGNAL / {KIND_META[selectedNode.kind].label.toUpperCase()}</span><strong>{selectedNode.label}</strong><span>{EVIDENCE_META[selectedNode.evidence].label} · {neighbors.length} linked nodes</span></div>}
           {(viewport.omittedNodes > 0 || viewport.omittedEdges > 0) && <div className="render-budget" role="status">
             <Layers3 size={13}/> 화면 성능 보호: {viewport.omittedNodes.toLocaleString()}개 노드 · {viewport.omittedEdges.toLocaleString()}개 연결 생략
