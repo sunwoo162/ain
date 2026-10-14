@@ -65,28 +65,31 @@ function GraphCanvas({ nodes, edges, selected, onSelect, cyRef, layoutKey }: Gra
       boxSelectionEnabled: false,
       style: [
         { selector: 'node', style: {
-          'background-color': 'data(color)', width: 32, height: 32,
-          'border-width': 5, 'border-color': '#151a28', 'border-opacity': 1,
-          label: 'data(label)', color: '#cdd3e2', 'font-size': 11, 'font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
+          'background-color': 'data(color)', width: 29, height: 29,
+          'border-width': 6, 'border-color': '#0b1224', 'border-opacity': 1,
+          label: 'data(label)', color: '#dce6f9', 'font-size': 11, 'font-weight': 600, 'font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
           'text-wrap': 'ellipsis', 'text-max-width': '112px', 'text-overflow-wrap': 'anywhere',
           'text-valign': 'bottom', 'text-margin-y': 14,
           'min-zoomed-font-size': 7,
           'overlay-opacity': 0,
         } },
+        { selector: 'node[kind = "answer"]', style: { width: 44, height: 44, 'border-width': 8, 'shadow-color': '#66f0d6', 'shadow-blur': 25, 'shadow-opacity': 0.25 } },
+        { selector: 'node[kind = "model"]', style: { width: 39, height: 39, 'border-width': 8, 'shadow-color': '#9c88ff', 'shadow-blur': 21, 'shadow-opacity': 0.22 } },
+        { selector: 'node[kind = "prompt"]', style: { width: 36, height: 36, 'shadow-color': '#9ab4ff', 'shadow-blur': 16, 'shadow-opacity': 0.2 } },
         { selector: 'node[evidence = "reported"]', style: { 'border-style': 'dashed', 'border-color': '#9284c0' } },
         { selector: 'node[evidence = "inferred"]', style: { 'border-style': 'dotted', 'border-color': '#efb96e' } },
         { selector: 'node[evidence = "manual"]', style: { shape: 'round-rectangle', width: 34, height: 30 } },
         { selector: 'edge', style: {
-          width: 1.5, 'line-color': '#45516c', 'target-arrow-shape': 'triangle',
-          'target-arrow-color': '#45516c', 'arrow-scale': 0.62, 'curve-style': 'bezier', opacity: 0.62,
+          width: 1.35, 'line-color': '#526a91', 'target-arrow-shape': 'triangle',
+          'target-arrow-color': '#526a91', 'arrow-scale': 0.52, 'curve-style': 'bezier', opacity: 0.52,
         } },
         { selector: 'edge[evidence = "reported"], edge[evidence = "inferred"]', style: { 'line-style': 'dashed' } },
         { selector: 'edge[evidence = "manual"]', style: { 'line-style': 'dotted', 'line-color': '#d7af78', 'target-arrow-color': '#d7af78' } },
         { selector: '.dim', style: { opacity: 0.12 } },
         { selector: 'node.focused', style: {
-          'border-color': '#f9fafb', 'border-width': 3, 'background-color': 'data(color)', opacity: 1,
+          'border-color': '#eafcff', 'border-width': 4, 'background-color': 'data(color)', opacity: 1, 'shadow-color': '#b7a6ff', 'shadow-opacity': 0.7, 'shadow-blur': 32,
         } },
-        { selector: 'edge.connected', style: { opacity: 1, width: 2.2, 'line-color': '#8392ba', 'target-arrow-color': '#8392ba' } },
+        { selector: 'edge.connected', style: { opacity: 1, width: 2.2, 'line-color': '#9acbfa', 'target-arrow-color': '#9acbfa' } },
       ],
       layout: { name: 'cose', animate: false, padding: 56, idealEdgeLength: 126, nodeRepulsion: () => 450000, randomize: false },
     });
@@ -125,6 +128,7 @@ export default function App() {
   const [frame, setFrame] = useState<number | null>(null);
   const [mode, setMode] = useState<'graph' | 'timeline' | 'library'>('graph');
   const [layoutKey, setLayoutKey] = useState(0);
+  const [immersive, setImmersive] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteDetail, setNoteDetail] = useState('');
@@ -137,6 +141,7 @@ export default function App() {
   const [liveSession, setLiveSession] = useState<{ url: string; token: string } | null>(null);
   const [liveState, setLiveState] = useState('연결 안 됨');
   const cyRef = useRef<Core | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const frames = useMemo(() => timelineFrames(workspace), [workspace]);
   const currentFrame = frame === null ? frames.length : Math.min(frame, frames.length);
@@ -151,6 +156,19 @@ export default function App() {
     catch { setToast('Could not save: browser storage is full or disabled. Export your graph to keep a copy.'); }
   }, [workspace]);
   useEffect(() => { if (selected && !workspace.nodes.some(n => n.id === selected)) setSelected(null); }, [selected, workspace]);
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (event.key === 'Escape' && immersive && !(event.target instanceof HTMLInputElement)) {
+        setImmersive(false);
+      }
+    };
+    window.addEventListener('keydown', onShortcut);
+    return () => window.removeEventListener('keydown', onShortcut);
+  }, [immersive]);
   useEffect(() => {
     if (!liveSession) return;
     let stopped = false;
@@ -248,9 +266,9 @@ export default function App() {
   const disconnectLive = () => { setLiveSession(null); setLiveState('연결 안 됨'); flash('실시간 동기화를 중지했습니다.'); };
   const cycleFrame = (direction: 1 | -1) => setFrame(Math.min(frames.length, Math.max(0, currentFrame + direction)));
 
-  return <div className="app-shell">
+  return <div className={`app-shell ${immersive ? 'immersive' : ''}`}>
     <aside className="sidebar">
-      <div className="brand"><div className="brand-icon"><Network size={21} strokeWidth={2.25} /></div><div><strong>mindtrace<span className="brand-dot">.</span></strong><small>AI KNOWLEDGE EXPLORER</small></div></div>
+      <div className="brand"><div className="brand-icon"><Network size={21} strokeWidth={2.25} /></div><div><strong>mindtrace<span className="brand-dot">.</span></strong><small>THE EVIDENCE UNIVERSE</small></div></div>
       <div className="workspace-card"><div className="workspace-avatar">M</div><div className="workspace-text"><strong>{workspace.name}</strong><small>{workspace.isDemo ? 'Example workspace' : 'Local workspace'}</small></div><ChevronDown size={15} className="muted" /></div>
       <div className="sidebar-section-label">WORKSPACE</div>
       <nav className="nav-list" aria-label="Views">
@@ -266,13 +284,16 @@ export default function App() {
     <div className="main-layout">
       <header className="topbar"><div className="crumbs"><span>Workspace</span><ChevronRight size={15}/><strong>{mode === 'graph' ? 'Graph explorer' : mode === 'timeline' ? 'Timeline' : 'Node library'}</strong></div><div className="header-actions"><span className="autosave"><span className="status-dot" /> Saved locally</span><span className="header-divider"/><button type="button" className="btn btn-ghost" onClick={() => liveSession ? disconnectLive() : setLiveOpen(true)} title={liveSession ? 'Disconnect local collector' : 'Connect local AI collector'}><Radio size={15}/>{liveSession ? 'Disconnect' : 'Live connect'}</button><button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Import a MindTrace JSON workspace"><Upload size={16}/> Import</button><button type="button" className="btn btn-ghost" onClick={exportGraph}><ArrowDownToLine size={16}/> Export</button><button type="button" className="btn btn-primary" onClick={() => setEditorOpen(true)}><Plus size={16}/> New note</button></div></header>
       <main className="content">
-        <div className="page-heading"><div><div className="eyebrow"><Sparkles size={13}/> TRACE THE EVIDENCE</div><h1>{mode === 'graph' ? 'Knowledge graph' : mode === 'timeline' ? 'Trace timeline' : 'Node library'}</h1><p>{mode === 'graph' ? 'Explore the connections behind AI activity.' : mode === 'timeline' ? 'Step through observable events, without inventing hidden thoughts.' : 'Browse every piece of evidence in your workspace.'}</p></div><div className="heading-meta"><div><strong>{workspace.nodes.length}</strong><small>Nodes</small></div><div><strong>{workspace.edges.length}</strong><small>Connections</small></div></div></div>
-        <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input aria-label="Search nodes" placeholder="Search nodes, sources, details..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{filtered.nodes.length} shown</span><span className="toolbar-separator"/><button type="button" className="icon-button" title="Show all node types" onClick={() => setKinds([...NODE_KINDS])}><Filter size={17}/></button><button type="button" className="icon-button" title="Rearrange graph" onClick={() => setLayoutKey(k => k + 1)}><SlidersHorizontal size={17}/></button><button type="button" className="icon-button" title="Restore sample graph" onClick={reset}><RotateCcw size={17}/></button></div></div>
+        <div className="page-heading"><div className="hero-copy"><div className="eyebrow"><Sparkles size={13}/> THE OBSERVATORY <span className="eyebrow-divider"/> <span>V.02 / LOCAL-FIRST</span></div><h1>{mode === 'graph' ? <>Explore the <em>unknown.</em></> : mode === 'timeline' ? <>Trace through <em>time.</em></> : <>Every node. <em>Every source.</em></>}</h1><p>{mode === 'graph' ? 'A living constellation of every observable step behind an AI response.' : mode === 'timeline' ? 'Revisit every recorded event. Never mistake an observation for private reasoning.' : 'Your evidence, memories, model calls and relationships — in one place.'}</p></div><div className="heading-meta"><div><span className="metric-label">01 / SIGNALS</span><strong>{workspace.nodes.length.toLocaleString()}</strong><small>Nodes mapped</small></div><div><span className="metric-label">02 / PATHWAYS</span><strong>{workspace.edges.length.toLocaleString()}</strong><small>Connections</small></div><div className="metric-status"><span className="metric-label">03 / ORIGIN</span><strong><span className="metric-live-dot"/> {liveSession ? 'LIVE' : 'LOCAL'}</strong><small>{liveSession ? 'Collector linked' : 'Private workspace'}</small></div></div></div>
+        <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input ref={searchRef} aria-label="Search nodes" placeholder="Search the universe..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>Ctrl / ⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{filtered.nodes.length} signals visible</span><span className="toolbar-separator"/><button type="button" aria-pressed={immersive} className={`btn btn-ghost focus-toggle ${immersive ? 'is-active' : ''}`} title={immersive ? 'Exit immersive mode (Esc)' : 'Enter immersive mode'} onClick={() => setImmersive(value => !value)}><Maximize size={15}/>{immersive ? 'Exit focus' : 'Immersive'}</button><span className="toolbar-separator"/><button type="button" className="icon-button" title="Show all node types" onClick={() => setKinds([...NODE_KINDS])}><Filter size={17}/></button><button type="button" className="icon-button" title="Rearrange graph" onClick={() => setLayoutKey(k => k + 1)}><SlidersHorizontal size={17}/></button><button type="button" className="icon-button" title="Restore sample graph" onClick={reset}><RotateCcw size={17}/></button></div></div>
         {mode === 'library' ? <div className="library-view"><div className="library-header"><span>NAME</span><span>TYPE</span><span>PROVENANCE</span><span>CREATED</span></div>{filtered.nodes.map(node => <button className={`library-row ${selected === node.id ? 'selected' : ''}`} key={node.id} onClick={() => setSelected(node.id)}><span className="library-title"><span className="type-dot" style={{ backgroundColor: KIND_META[node.kind].color }}/>{node.label}</span><span>{KIND_META[node.kind].label}</span><span className={`evidence-text evidence-${node.evidence}`}>{EVIDENCE_META[node.evidence].label}</span><span>{fmtDate(node.createdAt)}</span></button>)}{!filtered.nodes.length && <div className="empty-state">No nodes match the current filters.</div>}</div> : <div className="graph-surface">
-          <div className="surface-top"><span><span className="pulse-dot"/> {liveSession ? liveState : workspace.isDemo ? 'SAMPLE DATA' : 'LOCAL WORKSPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> Select a node to inspect</span></div>
+          <div className="cosmos-aurora" aria-hidden="true"><div className="cosmos-ring ring-one"/><div className="cosmos-ring ring-two"/><div className="cosmos-crosshair"/></div>
+          <div className="surface-top"><span className="telemetry-chip"><span className="pulse-dot"/> {liveSession ? liveState : workspace.isDemo ? 'SIMULATED CONSTELLATION' : 'PRIVATE KNOWLEDGE SPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> DRAG TO EXPLORE <span className="surface-marker">/</span> SCROLL TO ZOOM</span></div>
+          <div className="surface-coordinates" aria-hidden="true"><span>MT / EVIDENCE FIELD</span><span>OBSERVATORY_001</span></div>
           {filtered.nodes.length ? <GraphCanvas nodes={filtered.nodes} edges={filtered.edges} selected={selected} onSelect={setSelected} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
+          {immersive && selectedNode && <div className="immersive-node-panel" aria-live="polite"><span className="inspector-caption">SELECTED SIGNAL / {KIND_META[selectedNode.kind].label.toUpperCase()}</span><strong>{selectedNode.label}</strong><span>{EVIDENCE_META[selectedNode.evidence].label} · {neighbors.length} linked nodes</span></div>}
           <div className="graph-controls"><button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => cyRef.current?.zoom({ level: Math.min(3, (cyRef.current?.zoom() ?? 1) * 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomIn size={17}/></button><button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => cyRef.current?.zoom({ level: Math.max(.25, (cyRef.current?.zoom() ?? 1) / 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomOut size={17}/></button><div className="control-divider"/><button type="button" title="Fit graph" aria-label="Fit graph" onClick={() => cyRef.current?.fit(undefined, 55)}><Maximize size={17}/></button></div>
-          <div className="legend"><span><i className="legend-line"/> Observed</span><span><i className="legend-line dashed"/> Reported / inferred</span><span><i className="legend-line dotted"/> Manual</span></div>
+          <div className="legend"><span className="legend-title">SIGNAL KEY</span><span><i className="legend-line"/> Observed</span><span><i className="legend-line dashed"/> Reported / inferred</span><span><i className="legend-line dotted"/> Manual</span></div>
         </div>}
         {(mode === 'timeline' || frame !== null) && <div className="timeline-card"><div className="timeline-label"><Clock3 size={16}/> <strong>Event replay</strong><span>{frames.length ? (currentFrame === frames.length ? 'All events' : currentFrame === 0 ? 'Before first event' : fmtDate(frames[currentFrame - 1]!)) : 'No events'}</span></div><div className="timeline-controls"><button type="button" aria-label="Previous event" onClick={() => cycleFrame(-1)} disabled={currentFrame <= 0}>‹</button><input type="range" aria-label="Event position" min="0" max={frames.length} value={currentFrame} onChange={e => setFrame(Number(e.target.value))}/><button type="button" aria-label="Next event" onClick={() => cycleFrame(1)} disabled={currentFrame >= frames.length}>›</button><button type="button" className="tiny-link" onClick={() => setFrame(null)}>Latest</button></div><small>{currentFrame} / {frames.length} events</small></div>}
         <div className="under-graph"><div><Activity size={15}/><span>Graph connections describe recorded relationships, not private model thoughts.</span></div><a href="https://github.com/sunwoo162/ain#evidence-model" target="_blank" rel="noreferrer">Evidence model <ArrowRight size={13}/></a></div>
