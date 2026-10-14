@@ -24,6 +24,14 @@ Explore observable AI activity as an evidence graph. A local-first, Obsidian-ins
 - Cytoscape 재사용 및 증분 갱신으로 선택/수집 시 그래프 재생성 감소
 - 자세한 내용: [V0.4 개발 문서](docs/recorded-paths.md)
 
+## V0.7 — 별자리 관계망과 시맨틱 줌
+
+- 실제 노드·엣지만 사용하는 **연결 묶음 탐색기**, 묶음 집중 보기와 전체 복귀
+- 확대 단계별 정보 밀도 조절: **은하 조망 / 관계 탐색 / 세부 분석**
+- 묶음은 실제 실행 ID가 아니라 현재 데이터의 **연결 요소**임을 명시 (가짜 관계 생성 없음)
+- 클러스터 도메인 테스트 및 Chromium 데스크톱·모바일 UI 회귀 테스트
+- [V0.7 사용·설계 설명](docs/constellations.md)
+
 ## V0.6 — 스트리밍 메타데이터 및 시간 이벤트
 
 - OpenAI / Claude **SSE**, Ollama **NDJSON** 응답을 변형하지 않고 전달

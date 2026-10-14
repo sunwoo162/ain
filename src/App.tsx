@@ -14,6 +14,8 @@ import {
 import { demoWorkspace } from './data/demo';
 import { mergeLiveWorkspace } from './domain/trace';
 import { EventChronicle } from './components/EventChronicle';
+import { ConstellationExplorer } from './components/ConstellationExplorer';
+import { findConnectedClusters, filterToCluster, semanticZoomLevel, type ZoomLevel } from './domain/clusters';
 import { getNeighborhoodGraph, type LensDepth } from './domain/explore';
 import { findRecordedPath, planGraphViewport, type RecordedPath } from './domain/paths';
 import { downloadWorkspace, loadWorkspace, MAX_IMPORT_BYTES, parseImport, saveWorkspace } from './lib/storage';
@@ -44,18 +46,22 @@ type GraphCanvasProps = {
   selected: string | null;
   path: RecordedPath | null;
   onSelect: (id: string | null) => void;
+  onZoomTier: (tier: ZoomLevel) => void;
   cyRef: MutableRefObject<Core | null>;
   layoutKey: number;
 };
 
 function GraphCanvas({
-  nodes, edges, selected, path, onSelect, cyRef, layoutKey,
+  nodes, edges, selected, path, onSelect, onZoomTier, cyRef, layoutKey,
 }: GraphCanvasProps) {
   const mount = useRef<HTMLDivElement>(null);
   const selectHandler = useRef(onSelect);
+  const zoomTierHandler = useRef(onZoomTier);
+  const zoomTierRef = useRef<ZoomLevel>('explore');
   const previousLayoutKey = useRef<number | null>(null);
   const hasLaidOut = useRef(false);
   useEffect(() => { selectHandler.current = onSelect; }, [onSelect]);
+  useEffect(() => { zoomTierHandler.current = onZoomTier; }, [onZoomTier]);
 
   const elements = useMemo<ElementDefinition[]>(() => [
     ...nodes.map(n => ({ data: {
@@ -104,6 +110,15 @@ function GraphCanvas({
         { selector: 'node.route-start', style: { 'border-color': '#bcb1ff', 'border-width': 6, 'z-index': 90 } },
         { selector: 'node.route-end', style: { 'border-color': '#75f4d5', 'border-width': 6, 'z-index': 90 } },
         { selector: 'edge.route-edge', style: { opacity: 1, width: 4.2, 'line-color': '#74e4f4', 'target-arrow-color': '#74e4f4', 'z-index': 80 } },
+        // Semantic zoom: camera scale changes label density, never the graph data.
+        { selector: 'node.semantic-overview', style: { 'text-opacity': 0 } },
+        { selector: 'node.semantic-overview[kind = "prompt"], node.semantic-overview[kind = "model"], node.semantic-overview[kind = "answer"]',
+          style: { 'text-opacity': 1, 'font-size': 12, 'font-weight': 700 } },
+        { selector: 'edge.semantic-overview', style: { opacity: 0.24, width: 1 } },
+        { selector: 'node.semantic-explore', style: { 'text-opacity': 0.87 } },
+        { selector: 'node.semantic-detail', style: { 'text-opacity': 1, 'font-size': 12 } },
+        { selector: 'edge.semantic-detail', style: { opacity: 0.74 } },
+        { selector: 'node.route-node', style: { 'text-opacity': 1 } },
         { selector: 'node.focused', style: {
           'border-color': '#eafcff', 'border-width': 4, 'background-color': 'data(color)', opacity: 1, 'overlay-opacity': 0.1,
         } },
@@ -114,6 +129,17 @@ function GraphCanvas({
     cyRef.current = cy;
     cy.on('tap', 'node', event => selectHandler.current(event.target.id()));
     cy.on('tap', event => { if (event.target === cy) selectHandler.current(null); });
+    const syncZoom = () => {
+      const next = semanticZoomLevel(cy.zoom(), zoomTierRef.current);
+      if (next === zoomTierRef.current) return;
+      cy.batch(() => {
+        cy.elements().removeClass('semantic-overview semantic-explore semantic-detail');
+        cy.elements().addClass(`semantic-${next}`);
+      });
+      zoomTierRef.current = next;
+      zoomTierHandler.current(next);
+    };
+    cy.on('zoom', syncZoom);
     const observer = new ResizeObserver(() => { cy.resize(); });
     observer.observe(mount.current);
     return () => {
@@ -141,7 +167,7 @@ function GraphCanvas({
     const topologyChanged = obsolete.length > 0 || additions.length > 0;
     cy.batch(() => {
       if (obsolete.length) cy.remove(obsolete);
-      if (additions.length) cy.add(additions);
+      if (additions.length) cy.add(additions).addClass(`semantic-${zoomTierRef.current}`);
       for (const item of elements) {
         const element = cy.getElementById(String(item.data.id));
         if (!element.length || obsoleteIds.has(element.id())) continue;
@@ -207,6 +233,8 @@ export default function App() {
   const [kinds, setKinds] = useState<NodeKind[]>([...NODE_KINDS]);
   const [selected, setSelected] = useState<string | null>(null);
   const [lensDepth, setLensDepth] = useState<LensDepth>(0);
+  const [clusterId, setClusterId] = useState<string | null>(null);
+  const [zoomTier, setZoomTier] = useState<ZoomLevel>('explore');
   const [pathStart, setPathStart] = useState<string | null>(null);
   const [pathObservedOnly, setPathObservedOnly] = useState(false);
   const [frame, setFrame] = useState<number | null>(null);
@@ -251,28 +279,34 @@ export default function App() {
       window.cancelAnimationFrame(raf);
       window.cancelAnimationFrame(second.current);
     };
-  }, [immersive, lensDepth, mode]);
+  }, [immersive, lensDepth, clusterId, mode]);
   const searchRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const frames = useMemo(() => timelineFrames(workspace), [workspace]);
   const currentFrame = frame === null ? frames.length : Math.min(frame, frames.length);
   const asOf = currentFrame === frames.length ? undefined : frames[Math.max(0, currentFrame - 1)];
   const filtered = useMemo(() => getVisibleGraph(workspace, { query, kinds, asOf }), [workspace, query, kinds, asOf]);
+  const clusters = useMemo(() => findConnectedClusters(filtered), [filtered]);
+  const activeCluster = useMemo(
+    () => clusters.find(cluster => cluster.id === clusterId) ?? null,
+    [clusters, clusterId],
+  );
+  const clusterGraph = useMemo(() => filterToCluster(filtered, activeCluster), [filtered, activeCluster]);
   const scoped = useMemo(
-    () => pathStart ? filtered : getNeighborhoodGraph(filtered, selected, lensDepth),
-    [filtered, selected, lensDepth, pathStart],
+    () => pathStart ? clusterGraph : getNeighborhoodGraph(clusterGraph, selected, lensDepth),
+    [clusterGraph, selected, lensDepth, pathStart],
   );
   const pathRequested = pathStart !== null && selected !== null && selected !== pathStart;
   const recordedPath = useMemo(() =>
-    pathRequested ? findRecordedPath(filtered, pathStart, selected, pathObservedOnly) : null,
-    [filtered, pathStart, selected, pathObservedOnly, pathRequested],
+    pathRequested ? findRecordedPath(clusterGraph, pathStart, selected, pathObservedOnly) : null,
+    [clusterGraph, pathStart, selected, pathObservedOnly, pathRequested],
   );
   const viewport = useMemo(() => planGraphViewport(scoped, {
     maxNodes: 600, maxEdges: 1800,
     pinNodeIds: [pathStart, selected, ...(recordedPath?.nodeIds ?? [])].filter((id): id is string => id !== null),
     pinEdgeIds: recordedPath?.edgeIds,
   }), [scoped, pathStart, selected, recordedPath]);
-  const canFocus = selected !== null && filtered.nodes.some(node => node.id === selected);
+  const canFocus = selected !== null && clusterGraph.nodes.some(node => node.id === selected);
   const selectedNode = useMemo(() => workspace.nodes.find(n => n.id === selected) ?? null, [workspace, selected]);
   const neighbors = useMemo(() => selected ? getNeighbors(workspace, selected) : [], [workspace, selected]);
   const counts = useMemo(() => Object.fromEntries(NODE_KINDS.map(k => [k, workspace.nodes.filter(n => n.kind === k).length])) as Record<NodeKind, number>, [workspace]);
@@ -287,7 +321,7 @@ export default function App() {
     return result;
   }, [workspace]);
   const focusProvider = (name: 'OpenAI' | 'Anthropic' | 'Ollama') => {
-    setQuery(name); setSelected(null); setPathStart(null); setLensDepth(0); setFrame(null); setMode('graph');
+    setQuery(name); setSelected(null); setPathStart(null); setClusterId(null); setLensDepth(0); setFrame(null); setMode('graph');
     searchRef.current?.blur();
   };
 
@@ -373,7 +407,7 @@ export default function App() {
     try {
       if (file.size > MAX_IMPORT_BYTES) throw new Error('Import must be under 2 MB.');
       const next = parseImport(await file.text());
-      setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setPathStart(null); setLensDepth(0); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
+      setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setPathStart(null); setClusterId(null); setLensDepth(0); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
       flash(`Imported ${next.nodes.length} nodes.`);
     } catch (err) { flash(err instanceof Error ? err.message : 'Invalid import.'); }
     finally { event.target.value = ''; }
@@ -381,7 +415,7 @@ export default function App() {
   const reset = () => {
     if (!window.confirm('Replace this local workspace with the sample graph? Export your data first if you want to keep it.')) return;
     setLiveSession(null); setLiveState('연결 안 됨');
-    setWorkspace(structuredClone(demoWorkspace)); setSelected(null); setPathStart(null); setLensDepth(0); setFrame(null);
+    setWorkspace(structuredClone(demoWorkspace)); setSelected(null); setPathStart(null); setClusterId(null); setLensDepth(0); setFrame(null);
     setQuery(''); setKinds([...NODE_KINDS]); flash('Restored sample graph.');
   };
   const exportGraph = () => { downloadWorkspace(workspace); flash('Workspace exported.'); };
@@ -401,6 +435,7 @@ export default function App() {
       setLiveOpen(false);
       setSelected(null);
       setPathStart(null);
+      setClusterId(null);
       setLensDepth(0);
       setFrame(null);
       setMode('graph');
@@ -447,6 +482,19 @@ export default function App() {
             </button>
           </div>
         </div>
+        {mode === 'graph' && <ConstellationExplorer
+          clusters={clusters}
+          activeId={activeCluster?.id ?? null}
+          totalNodes={filtered.nodes.length}
+          onPick={id => {
+            setClusterId(id);
+            setSelected(null);
+            setPathStart(null);
+            setLensDepth(0);
+            setFrame(null);
+            setMode('graph');
+          }}
+        />}
         <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input ref={searchRef} aria-label="노드 검색" placeholder="흔적, 근거, 문서 검색..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>Ctrl / ⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{viewport.graph.nodes.length} / {filtered.nodes.length} 노드</span>
         {mode !== 'library' && <div className="scope-switch" role="group" aria-label="관계 탐색 범위">
           <span className="scope-prefix"><Focus size={13}/> 관계 렌즈</span>
@@ -462,9 +510,14 @@ export default function App() {
         {mode === 'library' ? <div className="library-view"><div className="library-header"><span>NAME</span><span>TYPE</span><span>PROVENANCE</span><span>CREATED</span></div>{filtered.nodes.map(node => <button className={`library-row ${selected === node.id ? 'selected' : ''}`} key={node.id} onClick={() => setSelected(node.id)}><span className="library-title"><span className="type-dot" style={{ backgroundColor: KIND_META[node.kind].color }}/>{node.label}</span><span>{KIND_META[node.kind].label}</span><span className={`evidence-text evidence-${node.evidence}`}>{EVIDENCE_META[node.evidence].label}</span><span>{fmtDate(node.createdAt)}</span></button>)}{!filtered.nodes.length && <div className="empty-state">No nodes match the current filters.</div>}</div> : <div className="graph-surface">
           <div className="cosmos-aurora" aria-hidden="true"><div className="cosmos-ring ring-one"/><div className="cosmos-ring ring-two"/><div className="cosmos-crosshair"/></div>
           <div className="surface-top"><span className="telemetry-chip"><span className="pulse-dot"/> {liveSession ? liveState : workspace.isDemo ? 'SIMULATED CONSTELLATION' : 'PRIVATE KNOWLEDGE SPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> DRAG TO EXPLORE <span className="surface-marker">/</span> SCROLL TO ZOOM</span></div>
-          <div className="surface-coordinates" aria-hidden="true"><span>疑 / EVIDENCE FIELD</span><span>{lensDepth === 0 || !canFocus ? 'GLOBAL CONSTELLATION' : `LOCAL LENS / ${lensDepth} HOPS`}</span></div>
+          <div className="surface-coordinates" aria-hidden="true"><span>疑 / EVIDENCE FIELD</span><span>{activeCluster ? 'SELECTED CONSTELLATION' : lensDepth === 0 || !canFocus ? 'GLOBAL CONSTELLATION' : `LOCAL LENS / ${lensDepth} HOPS`}</span></div>
+          <div className="semantic-zoom-hud" role="status" aria-label="그래프 확대 단계">
+            <span className={`semantic-led ${zoomTier}`}/>
+            <strong>{zoomTier === 'overview' ? '은하 조망' : zoomTier === 'detail' ? '세부 분석' : '관계 탐색'}</strong>
+            <small>{zoomTier === 'overview' ? '중요 노드 중심 표시' : zoomTier === 'detail' ? '모든 노드 제목 표시' : '연결 구조 탐색'}</small>
+          </div>
           {viewport.graph.nodes.length ? <GraphCanvas nodes={viewport.graph.nodes} edges={viewport.graph.edges}
-            selected={selected} path={recordedPath} onSelect={setSelected} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
+            selected={selected} path={recordedPath} onSelect={setSelected} onZoomTier={setZoomTier} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
           {immersive && selectedNode && <div className="immersive-node-panel" aria-live="polite"><span className="inspector-caption">SELECTED SIGNAL / {KIND_META[selectedNode.kind].label.toUpperCase()}</span><strong>{selectedNode.label}</strong><span>{EVIDENCE_META[selectedNode.evidence].label} · {neighbors.length} linked nodes</span></div>}
           {(viewport.omittedNodes > 0 || viewport.omittedEdges > 0) && <div className="render-budget" role="status">
             <Layers3 size={13}/> 화면 성능 보호: {viewport.omittedNodes.toLocaleString()}개 노드 · {viewport.omittedEdges.toLocaleString()}개 연결 생략
@@ -480,6 +533,7 @@ export default function App() {
           isLive={liveSession !== null}
           onSelect={node => {
             setSelected(node.id);
+            setClusterId(null);
             setPathStart(null);
             setLensDepth(0);
             setFrame(null);
