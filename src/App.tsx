@@ -657,7 +657,7 @@ export default function App() {
           <div><span>02</span><p><strong>웹 앱 연결</strong><code>npm run dev</code><small>Live connect에서 동일한 토큰을 입력합니다.</small></p></div>
           <div><span>03</span><p><strong>실제 AI 요청 관측</strong><code>node examples/observe-providers.mjs ollama</code><small>OpenAI / Claude를 쓰려면 해당 API 키가 필요하고 비용이 발생할 수 있어요.</small></p></div>
         </div>
-        <a className="provider-doc-link" href="https://github.com/sunwoo162/ain/blob/feat/ai-provider-observers/docs/providers.md"
+        <a className="provider-doc-link" href="https://github.com/sunwoo162/ain/blob/release/v1.0.0-rc1/docs/providers.md"
           target="_blank" rel="noreferrer">전체 연동 문서 보기 <ArrowRight size={15}/></a>
         <div className="modal-actions"><button type="button" className="btn btn-primary" onClick={() => setProviderHelpOpen(false)}>확인</button></div>
       </div></div>}
