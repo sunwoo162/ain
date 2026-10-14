@@ -1,4 +1,4 @@
-import type { EvidenceLevel, GraphEdge, GraphNode } from './graph.ts';
+import type { EvidenceLevel, GraphEdge } from './graph.ts';
 import type { Subgraph } from './explore.ts';
 
 export type RecordedPath = {
