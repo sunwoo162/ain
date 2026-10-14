@@ -364,3 +364,66 @@ body { background: var(--obs-bg); }
   .cosmos-aurora:before,.cosmos-aurora:after,.pulse-dot:after { animation: none !important; }
   .connections-list button { transition: none; }
 }
+
+/* UISIM — Korean-first identity and Obsidian-like graph lens. */
+:root { font-family: 'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR','DM Sans',system-ui,sans-serif; }
+.brand-name { font-family: 'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif !important; font-size:23px !important; letter-spacing:-1px !important; font-weight:850; }
+.brand small { font-size:8px; letter-spacing:1.2px; }
+.brand-icon { color:#f1edff; }
+.nav-item { font-size:12px; letter-spacing:-.1px; }
+.hero-copy { max-width:670px; }
+.page-heading h1 { font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Manrope,sans-serif; font-weight:850; letter-spacing:-2.3px; line-height:1.28; word-break:keep-all; }
+.page-heading p { font-size:13px; letter-spacing:-.1px; }
+.page-heading .eyebrow { letter-spacing:1.3px; }
+.scope-switch {
+  display:flex; gap:2px; align-items:center; flex-shrink:0;
+  padding:4px; border-radius:9px; border:1px solid #354665;
+  background:linear-gradient(145deg,#0e1930,#0c1529);
+  box-shadow:inset 0 1px 0 #ffffff0b;
+}
+.scope-prefix { color:#8093b7; font-size:10px; padding:0 10px 0 7px; display:flex; gap:6px; align-items:center; white-space:nowrap; }
+.scope-button {
+  color:#93a4c4; background:transparent; border:1px solid transparent;
+  border-radius:6px; padding:7px 9px; font-size:10px; font-weight:700;
+  white-space:nowrap; transition:background .16s,border-color .16s,color .16s;
+}
+.scope-button:hover:not(:disabled) { background:#2a3550; color:#eaf3ff; }
+.scope-button.active {
+  background:linear-gradient(120deg,#6e67c4a3,#42659f99);
+  border-color:#989dfe73; color:#fff; box-shadow:0 0 16px #776dec20;
+}
+.scope-button:disabled { opacity:.32; cursor:not-allowed; }
+.telemetry-chip { font-size:9px; letter-spacing:.7px; }
+.graph-canvas { cursor:grab; }
+.graph-canvas:active { cursor:grabbing; }
+.inspector-body h2,.immersive-node-panel strong { font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Manrope,sans-serif; word-break:keep-all; }
+@media(max-width:1720px) {
+  .canvas-toolbar { height:auto; min-height:65px; padding-top:9px; padding-bottom:9px; flex-wrap:wrap; row-gap:9px; }
+  .toolbar-right { flex-wrap:wrap; justify-content:flex-end; }
+}
+@media(max-width:1370px) {
+  .scope-prefix { display:none; }
+  .scope-button { padding:7px 8px; }
+  .result-count { display:none; }
+}
+@media(max-width:1190px) {
+  .canvas-toolbar { flex-wrap:wrap; }
+  .scope-prefix { display:flex; }
+  .toolbar-right { justify-content:flex-end; }
+}
+@media(max-width:760px) {
+  .page-heading h1 { font-size:clamp(26px,7vw,34px); letter-spacing:-1.5px; }
+  .brand-name { font-size:21px !important; }
+  .page-heading .eyebrow { font-size:9px; letter-spacing:.65px; }
+  .scope-prefix { display:none; }
+  .scope-switch { flex:1 1 auto; justify-content:center; }
+  .scope-button { flex:1; padding:7px 5px; }
+  .toolbar-right { justify-content:space-between; flex-wrap:nowrap; gap:4px; }
+  .toolbar-right>.toolbar-separator { display:none; }
+  .focus-toggle { font-size:0; padding:0 8px; }
+  .focus-toggle svg { flex-shrink:0; }
+  .toolbar-right>.icon-button { width:27px; }
+  .telemetry-chip { max-width:calc(100vw - 50px); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .graph-surface { min-height:440px; }
+}
+@media(prefers-reduced-motion:reduce) { .scope-button { transition:none; } }

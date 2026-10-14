@@ -9,8 +9,8 @@ const sample = () => structuredClone(demoWorkspace);
 
 test('sample graph is valid and all references resolve', () => {
   assert.equal(isWorkspace(demoWorkspace), true);
-  assert.equal(demoWorkspace.nodes.length, 9);
-  assert.equal(demoWorkspace.edges.length, 10);
+  assert.equal(demoWorkspace.nodes.length, 25);
+  assert.equal(demoWorkspace.edges.length, 28);
 });
 
 test('schema rejects duplicate IDs and dangling references', () => {
@@ -23,7 +23,7 @@ test('schema rejects duplicate IDs and dangling references', () => {
 });
 
 test('search keeps one-hop context and never invents edges', () => {
-  const graph = getVisibleGraph(demoWorkspace, { query: 'Index documentation', kinds: demoWorkspace.nodes.map(n => n.kind) });
+  const graph = getVisibleGraph(demoWorkspace, { query: '인덱스 사용 문서', kinds: demoWorkspace.nodes.map(n => n.kind) });
   assert.deepEqual(graph.nodes.map(n => n.id).sort(), ['doc2', 'model1', 'summary1']);
   assert.deepEqual(graph.edges.map(e => e.id).sort(), ['e4', 'e7']);
 });
@@ -36,7 +36,7 @@ test('kind filters remove connected edges with hidden endpoints', () => {
 
 test('timeline filters both nodes and edges by event time', () => {
   const ts = timelineFrames(demoWorkspace);
-  assert.equal(ts.length, 9);
+  assert.equal(ts.length, 25);
   const graph = getVisibleGraph(demoWorkspace, { query: '', kinds: demoWorkspace.nodes.map(n => n.kind), asOf: ts[3] });
   assert.deepEqual(graph.nodes.map(n => n.id), ['q1', 'model1', 'doc1', 'tool1']);
   assert.deepEqual(graph.edges.map(e => e.id), ['e1', 'e2', 'e3']);

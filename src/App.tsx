@@ -4,7 +4,7 @@ import {
   Activity, ArrowDownToLine, ArrowRight, BookOpen, Check, ChevronDown, ChevronRight,
   CircleHelp, Clock3, Filter, GitBranch, GitFork, Radio,
   Layers3, Link2, Maximize, MessageCircle, MousePointer2, Network, Plus, RotateCcw,
-  Search, ShieldCheck, SlidersHorizontal, Sparkles, Upload, X, ZoomIn, ZoomOut,
+  Search, ShieldCheck, SlidersHorizontal, Sparkles, Upload, X, ZoomIn, ZoomOut, Focus,
 } from 'lucide-react';
 import {
   addManualLink, addNote, getNeighbors, getVisibleGraph, NODE_KINDS,
@@ -13,26 +13,27 @@ import {
 } from './domain/graph';
 import { demoWorkspace } from './data/demo';
 import { mergeLiveWorkspace } from './domain/trace';
+import { getNeighborhoodGraph, type LensDepth } from './domain/explore';
 import { downloadWorkspace, loadWorkspace, MAX_IMPORT_BYTES, parseImport, saveWorkspace } from './lib/storage';
 
 const KIND_META: Record<NodeKind, { label: string; color: string }> = {
-  prompt: { label: 'Prompts', color: '#a2a9ff' },
-  model: { label: 'Model calls', color: '#9485fa' },
-  document: { label: 'Documents', color: '#5dc8be' },
-  memory: { label: 'Memory', color: '#e4ae6d' },
-  tool: { label: 'Tool calls', color: '#76abff' },
-  'reasoning-summary': { label: 'Summaries', color: '#cc9aff' },
-  answer: { label: 'Answers', color: '#71d4a4' },
-  note: { label: 'My notes', color: '#e7bd7a' },
-  error: { label: 'Errors', color: '#ef8a91' },
+  prompt: { label: '질문', color: '#a2a9ff' },
+  model: { label: '모델 호출', color: '#9485fa' },
+  document: { label: '문서', color: '#5dc8be' },
+  memory: { label: '메모리', color: '#e4ae6d' },
+  tool: { label: '도구 실행', color: '#76abff' },
+  'reasoning-summary': { label: '근거 요약', color: '#cc9aff' },
+  answer: { label: '답변', color: '#71d4a4' },
+  note: { label: '내 메모', color: '#e7bd7a' },
+  error: { label: '오류', color: '#ef8a91' },
 };
 const EVIDENCE_META: Record<EvidenceLevel, { label: string; help: string }> = {
-  observed: { label: 'Observed', help: 'Directly logged by an integration. Not proof of internal reasoning.' },
-  reported: { label: 'Reported', help: 'An explanation or description provided by a source or model.' },
-  inferred: { label: 'Inferred', help: 'A proposed connection, not confirmed by a trace.' },
-  manual: { label: 'Manual', help: 'A user-added note or connection.' },
+  observed: { label: '관측됨', help: '연동 프로그램이 실제로 기록한 이벤트입니다. 내부 사고에서 사용했다는 증거는 아닙니다.' },
+  reported: { label: '제공된 설명', help: '모델 또는 외부 자료가 제공한 설명이며 직접 관측한 근거와 다릅니다.' },
+  inferred: { label: '추정', help: '확인되지 않은 관계입니다. 검증된 사실로 취급하지 마세요.' },
+  manual: { label: '수동 작성', help: '사용자가 직접 추가한 노트 또는 연결입니다.' },
 };
-const fmtDate = (iso: string) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+const fmtDate = (iso: string) => new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 const uid = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 type GraphCanvasProps = {
@@ -124,7 +125,8 @@ export default function App() {
   const [workspace, setWorkspace] = useState<Workspace>(loadWorkspace);
   const [query, setQuery] = useState('');
   const [kinds, setKinds] = useState<NodeKind[]>([...NODE_KINDS]);
-  const [selected, setSelected] = useState<string | null>('answer1');
+  const [selected, setSelected] = useState<string | null>(null);
+  const [lensDepth, setLensDepth] = useState<LensDepth>(0);
   const [frame, setFrame] = useState<number | null>(null);
   const [mode, setMode] = useState<'graph' | 'timeline' | 'library'>('graph');
   const [layoutKey, setLayoutKey] = useState(0);
@@ -147,6 +149,11 @@ export default function App() {
   const currentFrame = frame === null ? frames.length : Math.min(frame, frames.length);
   const asOf = currentFrame === frames.length ? undefined : frames[Math.max(0, currentFrame - 1)];
   const filtered = useMemo(() => getVisibleGraph(workspace, { query, kinds, asOf }), [workspace, query, kinds, asOf]);
+  const scoped = useMemo(
+    () => getNeighborhoodGraph(filtered, selected, lensDepth),
+    [filtered, selected, lensDepth],
+  );
+  const canFocus = selected !== null && filtered.nodes.some(node => node.id === selected);
   const selectedNode = useMemo(() => workspace.nodes.find(n => n.id === selected) ?? null, [workspace, selected]);
   const neighbors = useMemo(() => selected ? getNeighbors(workspace, selected) : [], [workspace, selected]);
   const counts = useMemo(() => Object.fromEntries(NODE_KINDS.map(k => [k, workspace.nodes.filter(n => n.kind === k).length])) as Record<NodeKind, number>, [workspace]);
@@ -230,7 +237,7 @@ export default function App() {
     try {
       if (file.size > MAX_IMPORT_BYTES) throw new Error('Import must be under 2 MB.');
       const next = parseImport(await file.text());
-      setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
+      setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setLensDepth(0); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
       flash(`Imported ${next.nodes.length} nodes.`);
     } catch (err) { flash(err instanceof Error ? err.message : 'Invalid import.'); }
     finally { event.target.value = ''; }
@@ -238,7 +245,7 @@ export default function App() {
   const reset = () => {
     if (!window.confirm('Replace this local workspace with the sample graph? Export your data first if you want to keep it.')) return;
     setLiveSession(null); setLiveState('연결 안 됨');
-    setWorkspace(structuredClone(demoWorkspace)); setSelected('answer1'); setFrame(null);
+    setWorkspace(structuredClone(demoWorkspace)); setSelected(null); setLensDepth(0); setFrame(null);
     setQuery(''); setKinds([...NODE_KINDS]); flash('Restored sample graph.');
   };
   const exportGraph = () => { downloadWorkspace(workspace); flash('Workspace exported.'); };
@@ -257,6 +264,7 @@ export default function App() {
       setLiveToken('');
       setLiveOpen(false);
       setSelected(null);
+      setLensDepth(0);
       setFrame(null);
       setMode('graph');
       setQuery('');
@@ -268,29 +276,40 @@ export default function App() {
 
   return <div className={`app-shell ${immersive ? 'immersive' : ''}`}>
     <aside className="sidebar">
-      <div className="brand"><div className="brand-icon"><Network size={21} strokeWidth={2.25} /></div><div><strong>mindtrace<span className="brand-dot">.</span></strong><small>THE EVIDENCE UNIVERSE</small></div></div>
-      <div className="workspace-card"><div className="workspace-avatar">M</div><div className="workspace-text"><strong>{workspace.name}</strong><small>{workspace.isDemo ? 'Example workspace' : 'Local workspace'}</small></div><ChevronDown size={15} className="muted" /></div>
-      <div className="sidebar-section-label">WORKSPACE</div>
+      <div className="brand"><div className="brand-icon"><Network size={21} strokeWidth={2.25} /></div><div><strong className="brand-name">의심암귀<span className="brand-dot">.</span></strong><small>疑心暗鬼 / EVIDENCE UNIVERSE</small></div></div>
+      <div className="workspace-card"><div className="workspace-avatar">疑</div><div className="workspace-text"><strong>{workspace.name}</strong><small>{workspace.isDemo ? 'Example workspace' : 'Local workspace'}</small></div><ChevronDown size={15} className="muted" /></div>
+      <div className="sidebar-section-label">탐색 공간 / WORKSPACE</div>
       <nav className="nav-list" aria-label="Views">
-        <button type="button" className={`nav-item ${mode === 'graph' ? 'active' : ''}`} onClick={() => changeMode('graph')}><Network size={17} /> Graph explorer <span className="nav-key">G</span></button>
-        <button type="button" className={`nav-item ${mode === 'timeline' ? 'active' : ''}`} onClick={() => changeMode('timeline')}><Clock3 size={17} /> Timeline</button>
-        <button type="button" className={`nav-item ${mode === 'library' ? 'active' : ''}`} onClick={() => changeMode('library')}><BookOpen size={17} /> Node library</button>
+        <button type="button" className={`nav-item ${mode === 'graph' ? 'active' : ''}`} onClick={() => changeMode('graph')}><Network size={17} /> 관계망 탐색 <span className="nav-key">G</span></button>
+        <button type="button" className={`nav-item ${mode === 'timeline' ? 'active' : ''}`} onClick={() => changeMode('timeline')}><Clock3 size={17} /> 시간 기록</button>
+        <button type="button" className={`nav-item ${mode === 'library' ? 'active' : ''}`} onClick={() => changeMode('library')}><BookOpen size={17} /> 노드 라이브러리</button>
       </nav>
-      <div className="section-top"><span className="sidebar-section-label">NODE TYPES</span><button type="button" className="tiny-link" onClick={() => setKinds(kinds.length === NODE_KINDS.length ? [] : [...NODE_KINDS])}>{kinds.length === NODE_KINDS.length ? 'Clear' : 'All'}</button></div>
+      <div className="section-top"><span className="sidebar-section-label">노드 유형</span><button type="button" className="tiny-link" onClick={() => setKinds(kinds.length === NODE_KINDS.length ? [] : [...NODE_KINDS])}>{kinds.length === NODE_KINDS.length ? 'Clear' : 'All'}</button></div>
       <div className="type-list">{NODE_KINDS.map(kind => <label key={kind} className="type-row"><input type="checkbox" checked={kinds.includes(kind)} onChange={() => toggleKind(kind)} /><span className="type-dot" style={{ backgroundColor: KIND_META[kind].color }} /><span>{KIND_META[kind].label}</span><small>{counts[kind]}</small></label>)}</div>
-      <div className="sidebar-bottom"><div className="privacy-card"><ShieldCheck size={17} /><div><strong>Local-first by design</strong><p>Your graph stays in this browser. No account or tracking required.</p></div></div><a className="sidebar-link" href="https://github.com/sunwoo162/ain" target="_blank" rel="noreferrer"><GitBranch size={16} /> Open source on GitHub <ArrowRight size={13} /></a></div>
+      <div className="sidebar-bottom"><div className="privacy-card"><ShieldCheck size={17} /><div><strong>로컬 우선 · 개인정보 보호</strong><p>명시적으로 연결하지 않으면 이 브라우저에만 저장됩니다.</p></div></div><a className="sidebar-link" href="https://github.com/sunwoo162/ain" target="_blank" rel="noreferrer"><GitBranch size={16} /> GitHub 오픈소스 <ArrowRight size={13} /></a></div>
     </aside>
 
     <div className="main-layout">
       <header className="topbar"><div className="crumbs"><span>Workspace</span><ChevronRight size={15}/><strong>{mode === 'graph' ? 'Graph explorer' : mode === 'timeline' ? 'Timeline' : 'Node library'}</strong></div><div className="header-actions"><span className="autosave"><span className="status-dot" /> Saved locally</span><span className="header-divider"/><button type="button" className="btn btn-ghost" onClick={() => liveSession ? disconnectLive() : setLiveOpen(true)} title={liveSession ? 'Disconnect local collector' : 'Connect local AI collector'}><Radio size={15}/>{liveSession ? 'Disconnect' : 'Live connect'}</button><button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Import a MindTrace JSON workspace"><Upload size={16}/> Import</button><button type="button" className="btn btn-ghost" onClick={exportGraph}><ArrowDownToLine size={16}/> Export</button><button type="button" className="btn btn-primary" onClick={() => setEditorOpen(true)}><Plus size={16}/> New note</button></div></header>
       <main className="content">
-        <div className="page-heading"><div className="hero-copy"><div className="eyebrow"><Sparkles size={13}/> THE OBSERVATORY <span className="eyebrow-divider"/> <span>V.02 / LOCAL-FIRST</span></div><h1>{mode === 'graph' ? <>Explore the <em>unknown.</em></> : mode === 'timeline' ? <>Trace through <em>time.</em></> : <>Every node. <em>Every source.</em></>}</h1><p>{mode === 'graph' ? 'A living constellation of every observable step behind an AI response.' : mode === 'timeline' ? 'Revisit every recorded event. Never mistake an observation for private reasoning.' : 'Your evidence, memories, model calls and relationships — in one place.'}</p></div><div className="heading-meta"><div><span className="metric-label">01 / SIGNALS</span><strong>{workspace.nodes.length.toLocaleString()}</strong><small>Nodes mapped</small></div><div><span className="metric-label">02 / PATHWAYS</span><strong>{workspace.edges.length.toLocaleString()}</strong><small>Connections</small></div><div className="metric-status"><span className="metric-label">03 / ORIGIN</span><strong><span className="metric-live-dot"/> {liveSession ? 'LIVE' : 'LOCAL'}</strong><small>{liveSession ? 'Collector linked' : 'Private workspace'}</small></div></div></div>
-        <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input ref={searchRef} aria-label="Search nodes" placeholder="Search the universe..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>Ctrl / ⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{filtered.nodes.length} signals visible</span><span className="toolbar-separator"/><button type="button" aria-pressed={immersive} className={`btn btn-ghost focus-toggle ${immersive ? 'is-active' : ''}`} title={immersive ? 'Exit immersive mode (Esc)' : 'Enter immersive mode'} onClick={() => setImmersive(value => !value)}><Maximize size={15}/>{immersive ? 'Exit focus' : 'Immersive'}</button><span className="toolbar-separator"/><button type="button" className="icon-button" title="Show all node types" onClick={() => setKinds([...NODE_KINDS])}><Filter size={17}/></button><button type="button" className="icon-button" title="Rearrange graph" onClick={() => setLayoutKey(k => k + 1)}><SlidersHorizontal size={17}/></button><button type="button" className="icon-button" title="Restore sample graph" onClick={reset}><RotateCcw size={17}/></button></div></div>
+        <div className="page-heading"><div className="hero-copy"><div className="eyebrow"><Sparkles size={13}/> 의심암귀 · THE OBSERVATORY <span className="eyebrow-divider"/> <span>疑心暗鬼 / LOCAL-FIRST</span></div><h1>{mode === 'graph' ? <>모든 답변에는 <em>흔적이 있다.</em></> : mode === 'timeline' ? <>흔적을 따라 <em>시간 속으로.</em></> : <>노드 하나까지 <em>의심하라.</em></>}</h1><p>{mode === 'graph' ? 'AI가 남긴 관측 가능한 실행과 근거를 하나의 지식 우주에서 탐험하세요.' : mode === 'timeline' ? '기록된 실행을 되짚어 보세요. 관측된 이벤트를 숨겨진 내부 사고와 혼동하지 않습니다.' : '기록과 근거, 메모리와 모델 호출, 연결 관계까지 한곳에서 확인하세요.'}</p></div><div className="heading-meta"><div><span className="metric-label">01 / SIGNALS</span><strong>{workspace.nodes.length.toLocaleString()}</strong><small>기록된 노드</small></div><div><span className="metric-label">02 / PATHWAYS</span><strong>{workspace.edges.length.toLocaleString()}</strong><small>연결된 관계</small></div><div className="metric-status"><span className="metric-label">03 / ORIGIN</span><strong><span className="metric-live-dot"/> {liveSession ? 'LIVE' : 'LOCAL'}</strong><small>{liveSession ? 'Collector linked' : 'Private workspace'}</small></div></div></div>
+        <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input ref={searchRef} aria-label="노드 검색" placeholder="흔적, 근거, 문서 검색..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>Ctrl / ⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{scoped.nodes.length} / {filtered.nodes.length} 노드</span>
+        {mode !== 'library' && <div className="scope-switch" role="group" aria-label="관계 탐색 범위">
+          <span className="scope-prefix"><Focus size={13}/> 관계 렌즈</span>
+          {([0, 1, 2, 3] as const).map(depth => <button key={depth} type="button"
+            aria-label={depth === 0 ? '전체 관계 표시' : `선택 노드에서 ${depth}단계 관계 표시`}
+            title={depth === 0 ? '모든 노드 표시' : canFocus ? `선택한 노드에서 ${depth}단계 연결 탐색` : '먼저 노드를 선택하세요'}
+            aria-pressed={lensDepth === depth}
+            disabled={depth > 0 && !canFocus}
+            className={`scope-button ${lensDepth === depth ? 'active' : ''}`}
+            onClick={() => setLensDepth(depth)}>{depth === 0 ? '전체' : `${depth}단계`}</button>)}
+        </div>}
+        <span className="toolbar-separator"/><button type="button" aria-pressed={immersive} className={`btn btn-ghost focus-toggle ${immersive ? 'is-active' : ''}`} title={immersive ? 'Exit immersive mode (Esc)' : 'Enter immersive mode'} onClick={() => setImmersive(value => !value)}><Maximize size={15}/>{immersive ? 'Exit focus' : 'Immersive'}</button><span className="toolbar-separator"/><button type="button" className="icon-button" title="Show all node types" onClick={() => setKinds([...NODE_KINDS])}><Filter size={17}/></button><button type="button" className="icon-button" title="Rearrange graph" onClick={() => setLayoutKey(k => k + 1)}><SlidersHorizontal size={17}/></button><button type="button" className="icon-button" title="Restore sample graph" onClick={reset}><RotateCcw size={17}/></button></div></div>
         {mode === 'library' ? <div className="library-view"><div className="library-header"><span>NAME</span><span>TYPE</span><span>PROVENANCE</span><span>CREATED</span></div>{filtered.nodes.map(node => <button className={`library-row ${selected === node.id ? 'selected' : ''}`} key={node.id} onClick={() => setSelected(node.id)}><span className="library-title"><span className="type-dot" style={{ backgroundColor: KIND_META[node.kind].color }}/>{node.label}</span><span>{KIND_META[node.kind].label}</span><span className={`evidence-text evidence-${node.evidence}`}>{EVIDENCE_META[node.evidence].label}</span><span>{fmtDate(node.createdAt)}</span></button>)}{!filtered.nodes.length && <div className="empty-state">No nodes match the current filters.</div>}</div> : <div className="graph-surface">
           <div className="cosmos-aurora" aria-hidden="true"><div className="cosmos-ring ring-one"/><div className="cosmos-ring ring-two"/><div className="cosmos-crosshair"/></div>
           <div className="surface-top"><span className="telemetry-chip"><span className="pulse-dot"/> {liveSession ? liveState : workspace.isDemo ? 'SIMULATED CONSTELLATION' : 'PRIVATE KNOWLEDGE SPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> DRAG TO EXPLORE <span className="surface-marker">/</span> SCROLL TO ZOOM</span></div>
-          <div className="surface-coordinates" aria-hidden="true"><span>MT / EVIDENCE FIELD</span><span>OBSERVATORY_001</span></div>
-          {filtered.nodes.length ? <GraphCanvas nodes={filtered.nodes} edges={filtered.edges} selected={selected} onSelect={setSelected} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
+          <div className="surface-coordinates" aria-hidden="true"><span>疑 / EVIDENCE FIELD</span><span>{lensDepth === 0 || !canFocus ? 'GLOBAL CONSTELLATION' : `LOCAL LENS / ${lensDepth} HOPS`}</span></div>
+          {scoped.nodes.length ? <GraphCanvas nodes={scoped.nodes} edges={scoped.edges} selected={selected} onSelect={setSelected} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
           {immersive && selectedNode && <div className="immersive-node-panel" aria-live="polite"><span className="inspector-caption">SELECTED SIGNAL / {KIND_META[selectedNode.kind].label.toUpperCase()}</span><strong>{selectedNode.label}</strong><span>{EVIDENCE_META[selectedNode.evidence].label} · {neighbors.length} linked nodes</span></div>}
           <div className="graph-controls"><button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => cyRef.current?.zoom({ level: Math.min(3, (cyRef.current?.zoom() ?? 1) * 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomIn size={17}/></button><button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => cyRef.current?.zoom({ level: Math.max(.25, (cyRef.current?.zoom() ?? 1) / 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomOut size={17}/></button><div className="control-divider"/><button type="button" title="Fit graph" aria-label="Fit graph" onClick={() => cyRef.current?.fit(undefined, 55)}><Maximize size={17}/></button></div>
           <div className="legend"><span className="legend-title">SIGNAL KEY</span><span><i className="legend-line"/> Observed</span><span><i className="legend-line dashed"/> Reported / inferred</span><span><i className="legend-line dotted"/> Manual</span></div>
@@ -300,7 +319,7 @@ export default function App() {
       </main>
     </div>
 
-    <aside className="inspector"><div className="inspector-header"><div><Layers3 size={17}/> Inspector</div><button type="button" aria-label="Clear selection" title="Clear selection" onClick={() => setSelected(null)}><X size={16}/></button></div>{selectedNode ? <div className="inspector-body"><div className="inspector-caption">SELECTED NODE</div><div className="node-symbol" style={{ color: KIND_META[selectedNode.kind].color, backgroundColor: `${KIND_META[selectedNode.kind].color}1b` }}><Network size={24}/></div><h2>{selectedNode.label}</h2><div className="node-tags"><span className="tag"><span className="type-dot" style={{ backgroundColor: KIND_META[selectedNode.kind].color }}/>{KIND_META[selectedNode.kind].label}</span><span className={`tag provenance evidence-${selectedNode.evidence}`}>{EVIDENCE_META[selectedNode.evidence].label}</span></div><div className="inspector-divider"/><div className="inspector-caption">DESCRIPTION</div><p className="node-description">{selectedNode.detail || 'No description provided.'}</p><div className="inspector-caption" style={{ marginTop: 26 }}>PROVENANCE</div><dl className="node-properties"><div><dt>Source</dt><dd>{selectedNode.source}</dd></div><div><dt>Recorded</dt><dd>{fmtDate(selectedNode.createdAt)}</dd></div><div><dt>Evidence</dt><dd>{EVIDENCE_META[selectedNode.evidence].label}</dd></div></dl><div className="provenance-info"><CircleHelp size={15}/>{EVIDENCE_META[selectedNode.evidence].help}</div><div className="inspector-divider"/><div className="connections-heading"><span>CONNECTED NODES</span><span>{neighbors.length}</span></div><div className="connections-list">{neighbors.length ? neighbors.map(n => <button key={n.id} onClick={() => { setSelected(n.id); if (mode === 'timeline' && frame !== null) setFrame(null); }}><span className="type-dot" style={{ backgroundColor: KIND_META[n.kind].color }} /><span>{n.label}</span><ArrowRight size={13}/></button>) : <p className="muted small">No connections yet.</p>}</div><button type="button" className="btn btn-outline link-button" onClick={() => { setLinkOpen(x => !x); setLinkTarget(''); }}><Link2 size={15}/> Add manual connection</button>{linkOpen && <form className="link-form" onSubmit={addLink}><label>Connect to</label><select value={linkTarget} onChange={e => setLinkTarget(e.target.value)} required><option value="">Choose a node</option>{workspace.nodes.filter(n => n.id !== selectedNode.id).map(n => <option key={n.id} value={n.id}>{n.label}</option>)}</select><button className="btn btn-primary" type="submit">Create link</button></form>}</div> : <div className="inspector-placeholder"><GitFork size={32}/><strong>Nothing selected</strong><p>Click a node to inspect its source, evidence and connections.</p></div>}
+    <aside className="inspector"><div className="inspector-header"><div><Layers3 size={17}/> 근거 상세</div><button type="button" aria-label="Clear selection" title="Clear selection" onClick={() => setSelected(null)}><X size={16}/></button></div>{selectedNode ? <div className="inspector-body"><div className="inspector-caption">선택한 노드 / SELECTED SIGNAL</div><div className="node-symbol" style={{ color: KIND_META[selectedNode.kind].color, backgroundColor: `${KIND_META[selectedNode.kind].color}1b` }}><Network size={24}/></div><h2>{selectedNode.label}</h2><div className="node-tags"><span className="tag"><span className="type-dot" style={{ backgroundColor: KIND_META[selectedNode.kind].color }}/>{KIND_META[selectedNode.kind].label}</span><span className={`tag provenance evidence-${selectedNode.evidence}`}>{EVIDENCE_META[selectedNode.evidence].label}</span></div><div className="inspector-divider"/><div className="inspector-caption">설명 / DESCRIPTION</div><p className="node-description">{selectedNode.detail || 'No description provided.'}</p><div className="inspector-caption" style={{ marginTop: 26 }}>출처 / PROVENANCE</div><dl className="node-properties"><div><dt>Source</dt><dd>{selectedNode.source}</dd></div><div><dt>Recorded</dt><dd>{fmtDate(selectedNode.createdAt)}</dd></div><div><dt>Evidence</dt><dd>{EVIDENCE_META[selectedNode.evidence].label}</dd></div></dl><div className="provenance-info"><CircleHelp size={15}/>{EVIDENCE_META[selectedNode.evidence].help}</div><div className="inspector-divider"/><div className="connections-heading"><span>연결된 노드</span><span>{neighbors.length}</span></div><div className="connections-list">{neighbors.length ? neighbors.map(n => <button key={n.id} onClick={() => { setSelected(n.id); if (mode === 'timeline' && frame !== null) setFrame(null); }}><span className="type-dot" style={{ backgroundColor: KIND_META[n.kind].color }} /><span>{n.label}</span><ArrowRight size={13}/></button>) : <p className="muted small">No connections yet.</p>}</div><button type="button" className="btn btn-outline link-button" onClick={() => { setLinkOpen(x => !x); setLinkTarget(''); }}><Link2 size={15}/> Add manual connection</button>{linkOpen && <form className="link-form" onSubmit={addLink}><label>Connect to</label><select value={linkTarget} onChange={e => setLinkTarget(e.target.value)} required><option value="">Choose a node</option>{workspace.nodes.filter(n => n.id !== selectedNode.id).map(n => <option key={n.id} value={n.id}>{n.label}</option>)}</select><button className="btn btn-primary" type="submit">Create link</button></form>}</div> : <div className="inspector-placeholder"><GitFork size={32}/><strong>노드를 선택해 보세요</strong><p>관계망의 별을 클릭하면 출처와 근거, 연결 기록이 펼쳐집니다.</p></div>}
       <div className="inspector-footer"><span><ShieldCheck size={14}/> Provenance-aware by design</span></div>
     </aside>
 

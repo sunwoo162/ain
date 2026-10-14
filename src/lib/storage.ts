@@ -9,7 +9,10 @@ export function loadWorkspace(): Workspace {
     const raw = localStorage.getItem(KEY);
     if (!raw) return structuredClone(demoWorkspace);
     const parsed: unknown = JSON.parse(raw);
-    return isWorkspace(parsed) ? parsed : structuredClone(demoWorkspace);
+    if (!isWorkspace(parsed)) return structuredClone(demoWorkspace);
+    // Upgrade only the built-in synthetic sample. Never overwrite user-owned graphs.
+    if (parsed.isDemo && parsed.id === demoWorkspace.id) return structuredClone(demoWorkspace);
+    return parsed;
   } catch {
     return structuredClone(demoWorkspace);
   }

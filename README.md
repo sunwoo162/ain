@@ -1,8 +1,20 @@
-# MindTrace
+# 의심암귀 (疑心暗鬼) — MindTrace
 
-**Explore observable AI activity as an evidence graph.** A local-first, Obsidian-inspired open-source workspace for tracing prompts, tools, retrieval, memory, source documents, generated answers, and human annotations.
+**믿기 전에, 근거를 추적하라.** AI의 실제 실행 이벤트와 기록된 출처를 연결해 탐색하는 오픈소스 관계망입니다.
+
+**English codename: MindTrace · Brand: 의심암귀 (UISIM)**
+
+Explore observable AI activity as an evidence graph. A local-first, Obsidian-inspired open-source workspace for tracing prompts, tools, retrieval, memory, source documents, generated answers, and human annotations.
 
 > **Important:** MindTrace cannot read a model's private hidden thoughts. `observed` means an integration recorded an event; it does **not** mean the model relied on that event while reasoning. Demo data is synthetic.
+
+## 주요 화면 경험
+
+- 우주 관측소 스타일의 로컬 우선 그래프, 노드와 관계의 출처 구분
+- 노드 선택 후 **전체 / 1단계 / 2단계 / 3단계** 관계 렌즈 탐색
+- 실제 기록된 관계만 표시하며 자동으로 추측 연결을 생성하지 않음
+- **몰입 보기(Immersive)** 및 `Ctrl/⌘+K` 검색
+- **25개 노드 / 28개 관계**의 합성 데모 시나리오 3개 (실제 AI 기록 아님)
 
 ## Features — v0.1
 
