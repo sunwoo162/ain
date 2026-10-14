@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
 import {
   Activity, ArrowDownToLine, ArrowRight, BookOpen, Check, ChevronDown, ChevronRight,
-  CircleHelp, Clock3, Filter, GitBranch, GitFork,
+  CircleHelp, Clock3, Filter, GitBranch, GitFork, Radio,
   Layers3, Link2, Maximize, MessageCircle, MousePointer2, Network, Plus, RotateCcw,
   Search, ShieldCheck, SlidersHorizontal, Sparkles, Upload, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
@@ -12,6 +12,7 @@ import {
   type Workspace,
 } from './domain/graph';
 import { demoWorkspace } from './data/demo';
+import { mergeLiveWorkspace } from './domain/trace';
 import { downloadWorkspace, loadWorkspace, MAX_IMPORT_BYTES, parseImport, saveWorkspace } from './lib/storage';
 
 const KIND_META: Record<NodeKind, { label: string; color: string }> = {
@@ -130,6 +131,11 @@ export default function App() {
   const [linkTarget, setLinkTarget] = useState('');
   const [linkOpen, setLinkOpen] = useState(false);
   const [toast, setToast] = useState('');
+  const [liveOpen, setLiveOpen] = useState(false);
+  const [liveUrl, setLiveUrl] = useState('http://127.0.0.1:4318');
+  const [liveToken, setLiveToken] = useState('');
+  const [liveSession, setLiveSession] = useState<{ url: string; token: string } | null>(null);
+  const [liveState, setLiveState] = useState('연결 안 됨');
   const cyRef = useRef<Core | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const frames = useMemo(() => timelineFrames(workspace), [workspace]);
@@ -145,6 +151,37 @@ export default function App() {
     catch { setToast('Could not save: browser storage is full or disabled. Export your graph to keep a copy.'); }
   }, [workspace]);
   useEffect(() => { if (selected && !workspace.nodes.some(n => n.id === selected)) setSelected(null); }, [selected, workspace]);
+  useEffect(() => {
+    if (!liveSession) return;
+    let stopped = false;
+    let pending = false;
+    let hasSynced = false;
+    const controller = new AbortController();
+    const refresh = async () => {
+      if (pending || stopped) return;
+      pending = true;
+      try {
+        const response = await fetch(new URL('/v1/workspace', liveSession.url), {
+          headers: { authorization: `Bearer ${liveSession.token}` },
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status} — 수집기 연결 실패`);
+        const raw = await response.text();
+        if (raw.length > MAX_IMPORT_BYTES) throw new Error('수집 그래프가 2 MB를 초과했습니다.');
+        const incoming = parseImport(raw);
+        if (stopped) return;
+        setWorkspace(previous => hasSynced ? mergeLiveWorkspace(previous, incoming) : incoming);
+        hasSynced = true;
+        setLiveState('연결됨 · 2초마다 갱신');
+      } catch (error) {
+        if (!stopped) setLiveState(error instanceof Error ? error.message : '수집기 연결 실패');
+      } finally { pending = false; }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 2000);
+    return () => { stopped = true; controller.abort(); window.clearInterval(timer); };
+  }, [liveSession]);
   const flash = useCallback((msg: string) => { setToast(msg); }, []);
   const toggleKind = (kind: NodeKind) => setKinds(prev => prev.includes(kind) ? prev.filter(k => k !== kind) : [...prev, kind]);
   const changeMode = (next: 'graph' | 'timeline' | 'library') => { setMode(next); if (next === 'timeline') setFrame(curr => curr ?? frames.length); };
@@ -171,17 +208,40 @@ export default function App() {
     try {
       if (file.size > MAX_IMPORT_BYTES) throw new Error('Import must be under 2 MB.');
       const next = parseImport(await file.text());
-      setWorkspace(next); setSelected(null); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
+      setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
       flash(`Imported ${next.nodes.length} nodes.`);
     } catch (err) { flash(err instanceof Error ? err.message : 'Invalid import.'); }
     finally { event.target.value = ''; }
   };
   const reset = () => {
     if (!window.confirm('Replace this local workspace with the sample graph? Export your data first if you want to keep it.')) return;
+    setLiveSession(null); setLiveState('연결 안 됨');
     setWorkspace(structuredClone(demoWorkspace)); setSelected('answer1'); setFrame(null);
     setQuery(''); setKinds([...NODE_KINDS]); flash('Restored sample graph.');
   };
   const exportGraph = () => { downloadWorkspace(workspace); flash('Workspace exported.'); };
+  const connectLive = (event: FormEvent) => {
+    event.preventDefault();
+    try {
+      const url = new URL(liveUrl);
+      if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) ||
+          url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+        throw new Error('로컬 주소(http://127.0.0.1:4318)만 연결할 수 있습니다.');
+      }
+      if (liveToken.length < 12) throw new Error('수집기 토큰을 입력해 주세요.');
+      if (!window.confirm('현재 그래프를 수집기 데이터로 교체합니다. 필요하면 먼저 JSON으로 내보내세요. 연결할까요?')) return;
+      setLiveState('연결 중...');
+      setLiveSession({ url: url.origin, token: liveToken });
+      setLiveToken('');
+      setLiveOpen(false);
+      setSelected(null);
+      setFrame(null);
+      setMode('graph');
+      setQuery('');
+      setKinds([...NODE_KINDS]);
+    } catch (error) { flash(error instanceof Error ? error.message : '연결할 수 없습니다.'); }
+  };
+  const disconnectLive = () => { setLiveSession(null); setLiveState('연결 안 됨'); flash('실시간 동기화를 중지했습니다.'); };
   const cycleFrame = (direction: 1 | -1) => setFrame(Math.min(frames.length, Math.max(0, currentFrame + direction)));
 
   return <div className="app-shell">
@@ -200,12 +260,12 @@ export default function App() {
     </aside>
 
     <div className="main-layout">
-      <header className="topbar"><div className="crumbs"><span>Workspace</span><ChevronRight size={15}/><strong>{mode === 'graph' ? 'Graph explorer' : mode === 'timeline' ? 'Timeline' : 'Node library'}</strong></div><div className="header-actions"><span className="autosave"><span className="status-dot" /> Saved locally</span><span className="header-divider"/><button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Import a MindTrace JSON workspace"><Upload size={16}/> Import</button><button type="button" className="btn btn-ghost" onClick={exportGraph}><ArrowDownToLine size={16}/> Export</button><button type="button" className="btn btn-primary" onClick={() => setEditorOpen(true)}><Plus size={16}/> New note</button></div></header>
+      <header className="topbar"><div className="crumbs"><span>Workspace</span><ChevronRight size={15}/><strong>{mode === 'graph' ? 'Graph explorer' : mode === 'timeline' ? 'Timeline' : 'Node library'}</strong></div><div className="header-actions"><span className="autosave"><span className="status-dot" /> Saved locally</span><span className="header-divider"/><button type="button" className="btn btn-ghost" onClick={() => liveSession ? disconnectLive() : setLiveOpen(true)} title={liveSession ? 'Disconnect local collector' : 'Connect local AI collector'}><Radio size={15}/>{liveSession ? 'Disconnect' : 'Live connect'}</button><button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Import a MindTrace JSON workspace"><Upload size={16}/> Import</button><button type="button" className="btn btn-ghost" onClick={exportGraph}><ArrowDownToLine size={16}/> Export</button><button type="button" className="btn btn-primary" onClick={() => setEditorOpen(true)}><Plus size={16}/> New note</button></div></header>
       <main className="content">
         <div className="page-heading"><div><div className="eyebrow"><Sparkles size={13}/> TRACE THE EVIDENCE</div><h1>{mode === 'graph' ? 'Knowledge graph' : mode === 'timeline' ? 'Trace timeline' : 'Node library'}</h1><p>{mode === 'graph' ? 'Explore the connections behind AI activity.' : mode === 'timeline' ? 'Step through observable events, without inventing hidden thoughts.' : 'Browse every piece of evidence in your workspace.'}</p></div><div className="heading-meta"><div><strong>{workspace.nodes.length}</strong><small>Nodes</small></div><div><strong>{workspace.edges.length}</strong><small>Connections</small></div></div></div>
         <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input aria-label="Search nodes" placeholder="Search nodes, sources, details..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{filtered.nodes.length} shown</span><span className="toolbar-separator"/><button type="button" className="icon-button" title="Show all node types" onClick={() => setKinds([...NODE_KINDS])}><Filter size={17}/></button><button type="button" className="icon-button" title="Rearrange graph" onClick={() => setLayoutKey(k => k + 1)}><SlidersHorizontal size={17}/></button><button type="button" className="icon-button" title="Restore sample graph" onClick={reset}><RotateCcw size={17}/></button></div></div>
         {mode === 'library' ? <div className="library-view"><div className="library-header"><span>NAME</span><span>TYPE</span><span>PROVENANCE</span><span>CREATED</span></div>{filtered.nodes.map(node => <button className={`library-row ${selected === node.id ? 'selected' : ''}`} key={node.id} onClick={() => setSelected(node.id)}><span className="library-title"><span className="type-dot" style={{ backgroundColor: KIND_META[node.kind].color }}/>{node.label}</span><span>{KIND_META[node.kind].label}</span><span className={`evidence-text evidence-${node.evidence}`}>{EVIDENCE_META[node.evidence].label}</span><span>{fmtDate(node.createdAt)}</span></button>)}{!filtered.nodes.length && <div className="empty-state">No nodes match the current filters.</div>}</div> : <div className="graph-surface">
-          <div className="surface-top"><span><span className="pulse-dot"/> {workspace.isDemo ? 'SAMPLE DATA' : 'LOCAL WORKSPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> Select a node to inspect</span></div>
+          <div className="surface-top"><span><span className="pulse-dot"/> {liveSession ? liveState : workspace.isDemo ? 'SAMPLE DATA' : 'LOCAL WORKSPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> Select a node to inspect</span></div>
           {filtered.nodes.length ? <GraphCanvas nodes={filtered.nodes} edges={filtered.edges} selected={selected} onSelect={setSelected} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
           <div className="graph-controls"><button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => cyRef.current?.zoom({ level: Math.min(3, (cyRef.current?.zoom() ?? 1) * 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomIn size={17}/></button><button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => cyRef.current?.zoom({ level: Math.max(.25, (cyRef.current?.zoom() ?? 1) / 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomOut size={17}/></button><div className="control-divider"/><button type="button" title="Fit graph" aria-label="Fit graph" onClick={() => cyRef.current?.fit(undefined, 55)}><Maximize size={17}/></button></div>
           <div className="legend"><span><i className="legend-line"/> Observed</span><span><i className="legend-line dashed"/> Reported / inferred</span><span><i className="legend-line dotted"/> Manual</span></div>
@@ -220,6 +280,7 @@ export default function App() {
     </aside>
 
     <input hidden ref={fileRef} type="file" accept="application/json,.json" onChange={importFile} />
+    {liveOpen && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setLiveOpen(false); }}><form className="modal" onSubmit={connectLive} aria-label="로컬 AI 수집기 연결"><div className="modal-top"><div><span className="eyebrow">LOCAL EVENT COLLECTOR</span><h2>실시간 기록 연결</h2></div><button type="button" className="icon-button" aria-label="닫기" onClick={() => setLiveOpen(false)}><X size={18}/></button></div><p className="muted small">로컬 수집기의 관측된 이벤트만 불러옵니다. 모델의 숨겨진 추론은 수집하지 않습니다.</p><label htmlFor="collector-url">수집기 주소</label><input id="collector-url" type="url" value={liveUrl} onChange={e => setLiveUrl(e.target.value)} required/><label htmlFor="collector-token">수집기 토큰</label><input id="collector-token" type="password" autoComplete="off" value={liveToken} onChange={e => setLiveToken(e.target.value)} required placeholder="MINDTRACE_TOKEN"/><div className="modal-actions"><button type="button" className="btn btn-ghost" onClick={() => setLiveOpen(false)}>취소</button><button type="submit" className="btn btn-primary"><Radio size={15}/> 연결</button></div></form></div>}
     {editorOpen && <div className="modal-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setEditorOpen(false); }}><form className="modal" onSubmit={addNewNote} aria-label="Create a note"><div className="modal-top"><div><span className="eyebrow">PERSONAL ANNOTATION</span><h2>New note</h2></div><button type="button" className="icon-button" onClick={() => setEditorOpen(false)} aria-label="Close"><X size={18}/></button></div><label htmlFor="note-title">Title</label><input id="note-title" required maxLength={140} autoFocus placeholder="What did you discover?" value={noteTitle} onChange={e => setNoteTitle(e.target.value)} /><label htmlFor="note-detail">Details</label><textarea id="note-detail" rows={5} maxLength={10000} placeholder="Add context, observations or links..." value={noteDetail} onChange={e => setNoteDetail(e.target.value)} /><div className="modal-actions"><button type="button" className="btn btn-ghost" onClick={() => setEditorOpen(false)}>Cancel</button><button type="submit" className="btn btn-primary"><Check size={15}/> Create note</button></div></form></div>}
     {toast && <div className="toast" role="status"><MessageCircle size={16}/><span>{toast}</span><button type="button" aria-label="Dismiss notification" onClick={() => setToast('')}><X size={14}/></button></div>}
   </div>;

@@ -70,7 +70,7 @@ JSON import is limited to 2 MB. The UI caps workspaces to 10,000 nodes / 30,000 
 ## Roadmap
 
 - [x] **v0.1** Local interactive evidence graph, import/export, annotations, replay
-- [ ] **v0.2** SDK and collector protocol for directly instrumented agents
+- [x] **v0.2 (기초)** 루프백 수집기·토큰 인증·SDK·2초 폴링 연동 (추가 어댑터는 아직 미구현)
 - [ ] **v0.3** OpenAI / Anthropic / Ollama adapter prototypes (available API events only)
 - [ ] **v0.4** User-provided ChatGPT/Claude conversation export importers, with consent and redaction
 - [ ] **v0.5** Search at scale, layouts, filters, replay history, graph diff
@@ -88,3 +88,14 @@ JSON import is limited to 2 MB. The UI caps workspaces to 10,000 nodes / 30,000 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## 로컬 AI 실행 이벤트 실시간 연결 (v0.2)
+
+자체 AI 애플리케이션의 **명시적으로 기록된 이벤트**를 로컬 수집기에 전달하고 웹 그래프에서 볼 수 있습니다.
+
+1. PowerShell에서 `$env:MINDTRACE_TOKEN = node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))"`로 토큰 설정
+2. 같은 터미널에서 `npm run collector` 실행 (기본 주소 `http://127.0.0.1:4318`)
+3. 다른 터미널에서 `npm run dev` 실행 후 웹의 **Live connect**에서 주소·토큰 입력
+4. 토큰을 설정한 별도 터미널에서 `npm run demo:trace` 실행 → 그래프에 예시 실행 기록 표시
+
+자세한 API, 보안 설정, SDK 사용법은 [로컬 수집기 안내](docs/collector.md)를 참고하세요. 토큰은 브라우저 저장소에 남기지 않습니다. 그래프 데이터는 로컬 저장소에 남으므로 공용 기기에서는 주의하세요.
