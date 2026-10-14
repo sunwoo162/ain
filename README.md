@@ -16,6 +16,14 @@ Explore observable AI activity as an evidence graph. A local-first, Obsidian-ins
 - **몰입 보기(Immersive)** 및 `Ctrl/⌘+K` 검색
 - **25개 노드 / 28개 관계**의 합성 데모 시나리오 3개 (실제 AI 기록 아님)
 
+## 새로운 기능 — 기록 경로 탐색(V0.4)
+
+- 두 노드 사이에서 **실제 존재하는 연결만** 따라 최단 경로 표시. `observed` 관계만 보기 지원
+- 선택 노드·경로의 주변 영역 강조, 경로가 없는 경우 명확한 알림
+- 대형 그래프의 최대 600노드 / 1,800관계 렌더링 예산과 생략 수 알림
+- Cytoscape 재사용 및 증분 갱신으로 선택/수집 시 그래프 재생성 감소
+- 자세한 내용: [V0.4 개발 문서](docs/recorded-paths.md)
+
 ## Features — v0.1
 
 - Interactive Cytoscape graph with node selection, neighborhood highlighting, zoom, pan and fit-to-screen

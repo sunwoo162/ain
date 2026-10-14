@@ -14,6 +14,7 @@ import {
 import { demoWorkspace } from './data/demo';
 import { mergeLiveWorkspace } from './domain/trace';
 import { getNeighborhoodGraph, type LensDepth } from './domain/explore';
+import { findRecordedPath, planGraphViewport, type RecordedPath } from './domain/paths';
 import { downloadWorkspace, loadWorkspace, MAX_IMPORT_BYTES, parseImport, saveWorkspace } from './lib/storage';
 
 const KIND_META: Record<NodeKind, { label: string; color: string }> = {
@@ -40,27 +41,38 @@ type GraphCanvasProps = {
   nodes: GraphNode[];
   edges: GraphEdge[];
   selected: string | null;
+  path: RecordedPath | null;
   onSelect: (id: string | null) => void;
   cyRef: MutableRefObject<Core | null>;
   layoutKey: number;
 };
 
-function GraphCanvas({ nodes, edges, selected, onSelect, cyRef, layoutKey }: GraphCanvasProps) {
+function GraphCanvas({
+  nodes, edges, selected, path, onSelect, cyRef, layoutKey,
+}: GraphCanvasProps) {
   const mount = useRef<HTMLDivElement>(null);
   const selectHandler = useRef(onSelect);
+  const previousLayoutKey = useRef<number | null>(null);
+  const hasLaidOut = useRef(false);
   useEffect(() => { selectHandler.current = onSelect; }, [onSelect]);
+
   const elements = useMemo<ElementDefinition[]>(() => [
-    ...nodes.map(n => ({ data: { id: n.id, label: n.label, kind: n.kind, evidence: n.evidence, color: KIND_META[n.kind].color } })),
-    ...edges.map(e => ({ data: { id: e.id, source: e.source, target: e.target, kind: e.kind, evidence: e.evidence } })),
+    ...nodes.map(n => ({ data: {
+      id: n.id, label: n.label, kind: n.kind, evidence: n.evidence, color: KIND_META[n.kind].color,
+    } })),
+    ...edges.map(e => ({ data: {
+      id: e.id, source: e.source, target: e.target, kind: e.kind, evidence: e.evidence,
+    } })),
   ], [nodes, edges]);
 
+  // One Cytoscape instance per mounted graph. Data refreshes no longer reset
+  // camera zoom, pan, pointer listeners, or every existing node's position.
   useEffect(() => {
     if (!mount.current) return;
     const cy = cytoscape({
       container: mount.current,
-      elements,
-      minZoom: 0.25,
-      maxZoom: 3,
+      elements: [],
+      minZoom: 0.18, maxZoom: 3.2,
       wheelSensitivity: 0.16,
       selectionType: 'single',
       boxSelectionEnabled: false,
@@ -86,39 +98,106 @@ function GraphCanvas({ nodes, edges, selected, onSelect, cyRef, layoutKey }: Gra
         } },
         { selector: 'edge[evidence = "reported"], edge[evidence = "inferred"]', style: { 'line-style': 'dashed' } },
         { selector: 'edge[evidence = "manual"]', style: { 'line-style': 'dotted', 'line-color': '#d7af78', 'target-arrow-color': '#d7af78' } },
-        { selector: '.dim', style: { opacity: 0.12 } },
+        { selector: '.dim', style: { opacity: 0.08 } },
+        { selector: 'node.route-node', style: { opacity: 1, 'border-width': 4, 'border-color': '#c9f7ff', 'z-index': 70 } },
+        { selector: 'node.route-start', style: { 'border-color': '#bcb1ff', 'border-width': 6, 'z-index': 90 } },
+        { selector: 'node.route-end', style: { 'border-color': '#75f4d5', 'border-width': 6, 'z-index': 90 } },
+        { selector: 'edge.route-edge', style: { opacity: 1, width: 4.2, 'line-color': '#74e4f4', 'target-arrow-color': '#74e4f4', 'z-index': 80 } },
         { selector: 'node.focused', style: {
           'border-color': '#eafcff', 'border-width': 4, 'background-color': 'data(color)', opacity: 1, 'overlay-opacity': 0.1,
         } },
         { selector: 'edge.connected', style: { opacity: 1, width: 2.2, 'line-color': '#9acbfa', 'target-arrow-color': '#9acbfa' } },
-      ],
-      layout: { name: 'cose', animate: false, padding: 56, idealEdgeLength: 126, nodeRepulsion: () => 450000, randomize: false },
+      ]
+      layout: { name: 'preset' },
     });
     cyRef.current = cy;
-    cy.on('tap', 'node', e => selectHandler.current(e.target.id()));
-    cy.on('tap', e => { if (e.target === cy) selectHandler.current(null); });
-    const observer = new ResizeObserver(() => cy.resize());
+    cy.on('tap', 'node', event => selectHandler.current(event.target.id()));
+    cy.on('tap', event => { if (event.target === cy) selectHandler.current(null); });
+    const observer = new ResizeObserver(() => { cy.resize(); });
     observer.observe(mount.current);
     return () => {
       observer.disconnect();
       if (cyRef.current === cy) cyRef.current = null;
       cy.destroy();
     };
-  }, [elements, cyRef, layoutKey]);
+  }, [cyRef]);
+
+  // Patch only changed graph elements; a selection or path highlight does not
+  // recreate the engine or run force-layout. Large graphs get a bounded layout.
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    const desired = new Map(elements.map(element => [String(element.data.id), element]));
+    const obsolete = cy.elements().filter(element => {
+      const next = desired.get(element.id());
+      if (!next) return true;
+      if (!element.isEdge()) return false;
+      return element.data('source') !== next.data.source || element.data('target') !== next.data.target;
+    });
+    const obsoleteIds = new Set(obsolete.map(element => element.id()));
+    const additions = elements.filter(element =>
+      !cy.getElementById(String(element.data.id)).length || obsoleteIds.has(String(element.data.id)));
+    const topologyChanged = obsolete.length > 0 || additions.length > 0;
+    cy.batch(() => {
+      if (obsolete.length) cy.remove(obsolete);
+      if (additions.length) cy.add(additions);
+      for (const item of elements) {
+        const element = cy.getElementById(String(item.data.id));
+        if (!element.length || obsoleteIds.has(element.id())) continue;
+        for (const [key, value] of Object.entries(item.data)) {
+          if (element.data(key) !== value) element.data(key, value);
+        }
+      }
+    });
+    if (topologyChanged || previousLayoutKey.current !== layoutKey) {
+      const initial = !hasLaidOut.current;
+      const count = cy.nodes().length;
+      const layout = count > 250
+        ? { name: 'concentric', fit: initial, padding: 64, animate: false }
+        : { name: 'cose', fit: initial, animate: false, padding: 64,
+            idealEdgeLength: 130, nodeRepulsion: () => 450000, randomize: false };
+      cy.layout(layout).run();
+      previousLayoutKey.current = layoutKey;
+      hasLaidOut.current = true;
+    }
+  }, [elements, layoutKey, cyRef]);
 
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
-    cy.elements().removeClass('dim focused connected');
-    if (!selected || !cy.getElementById(selected).length) return;
-    const node = cy.getElementById(selected);
-    const adjacent = node.closedNeighborhood();
-    cy.elements().not(adjacent).addClass('dim');
-    node.addClass('focused');
-    node.connectedEdges().addClass('connected');
-  }, [selected, elements, cyRef, layoutKey]);
+    cy.elements().removeClass('dim focused connected route-node route-edge route-start route-end');
+    if (path && path.nodeIds.length > 1) {
+      cy.elements().addClass('dim');
+      for (const id of path.nodeIds) {
+        cy.getElementById(id).removeClass('dim').addClass('route-node');
+      }
+      for (const id of path.edgeIds) {
+        cy.getElementById(id).removeClass('dim').addClass('route-edge');
+      }
+      cy.getElementById(path.nodeIds[0]!).addClass('route-start');
+      cy.getElementById(path.nodeIds[path.nodeIds.length - 1]!).addClass('route-end');
+    } else if (selected && cy.getElementById(selected).length) {
+      const node = cy.getElementById(selected);
+      const adjacent = node.closedNeighborhood();
+      cy.elements().not(adjacent).addClass('dim');
+      node.addClass('focused');
+      node.connectedEdges().addClass('connected');
+    }
+  }, [selected, path, elements, cyRef, layoutKey]);
 
-  return <div className="graph-canvas" ref={mount} role="img" aria-label="Interactive AI evidence graph. Select nodes to inspect their details." />;
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy || !selected) return;
+    const node = cy.getElementById(selected);
+    if (!node.length) return;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+    cy.stop();
+    cy.animate({ center: { eles: node }, duration: 300 });
+  }, [selected, cyRef]);
+
+  return <div className="graph-canvas" ref={mount} role="img"
+    aria-label="의심암귀 관계 그래프. 노드를 클릭하면 출처와 기록된 연결 경로를 탐색할 수 있습니다." />;
 }
 
 export default function App() {
@@ -127,6 +206,8 @@ export default function App() {
   const [kinds, setKinds] = useState<NodeKind[]>([...NODE_KINDS]);
   const [selected, setSelected] = useState<string | null>(null);
   const [lensDepth, setLensDepth] = useState<LensDepth>(0);
+  const [pathStart, setPathStart] = useState<string | null>(null);
+  const [pathObservedOnly, setPathObservedOnly] = useState(false);
   const [frame, setFrame] = useState<number | null>(null);
   const [mode, setMode] = useState<'graph' | 'timeline' | 'library'>('graph');
   const [layoutKey, setLayoutKey] = useState(0);
@@ -150,9 +231,19 @@ export default function App() {
   const asOf = currentFrame === frames.length ? undefined : frames[Math.max(0, currentFrame - 1)];
   const filtered = useMemo(() => getVisibleGraph(workspace, { query, kinds, asOf }), [workspace, query, kinds, asOf]);
   const scoped = useMemo(
-    () => getNeighborhoodGraph(filtered, selected, lensDepth),
-    [filtered, selected, lensDepth],
+    () => pathStart ? filtered : getNeighborhoodGraph(filtered, selected, lensDepth),
+    [filtered, selected, lensDepth, pathStart],
   );
+  const pathRequested = pathStart !== null && selected !== null && selected !== pathStart;
+  const recordedPath = useMemo(() =>
+    pathRequested ? findRecordedPath(filtered, pathStart, selected, pathObservedOnly) : null,
+    [filtered, pathStart, selected, pathObservedOnly, pathRequested],
+  );
+  const viewport = useMemo(() => planGraphViewport(scoped, {
+    maxNodes: 600, maxEdges: 1800,
+    pinNodeIds: [pathStart, selected, ...(recordedPath?.nodeIds ?? [])].filter((id): id is string => id !== null),
+    pinEdgeIds: recordedPath?.edgeIds,
+  }), [scoped, pathStart, selected, recordedPath]);
   const canFocus = selected !== null && filtered.nodes.some(node => node.id === selected);
   const selectedNode = useMemo(() => workspace.nodes.find(n => n.id === selected) ?? null, [workspace, selected]);
   const neighbors = useMemo(() => selected ? getNeighbors(workspace, selected) : [], [workspace, selected]);
@@ -163,6 +254,9 @@ export default function App() {
     catch { setToast('Could not save: browser storage is full or disabled. Export your graph to keep a copy.'); }
   }, [workspace]);
   useEffect(() => { if (selected && !workspace.nodes.some(n => n.id === selected)) setSelected(null); }, [selected, workspace]);
+  useEffect(() => {
+    if (pathStart && !workspace.nodes.some(node => node.id === pathStart)) setPathStart(null);
+  }, [pathStart, workspace]);
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
@@ -237,7 +331,7 @@ export default function App() {
     try {
       if (file.size > MAX_IMPORT_BYTES) throw new Error('Import must be under 2 MB.');
       const next = parseImport(await file.text());
-      setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setLensDepth(0); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
+      setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setPathStart(null); setLensDepth(0); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
       flash(`Imported ${next.nodes.length} nodes.`);
     } catch (err) { flash(err instanceof Error ? err.message : 'Invalid import.'); }
     finally { event.target.value = ''; }
@@ -245,7 +339,7 @@ export default function App() {
   const reset = () => {
     if (!window.confirm('Replace this local workspace with the sample graph? Export your data first if you want to keep it.')) return;
     setLiveSession(null); setLiveState('연결 안 됨');
-    setWorkspace(structuredClone(demoWorkspace)); setSelected(null); setLensDepth(0); setFrame(null);
+    setWorkspace(structuredClone(demoWorkspace)); setSelected(null); setPathStart(null); setLensDepth(0); setFrame(null);
     setQuery(''); setKinds([...NODE_KINDS]); flash('Restored sample graph.');
   };
   const exportGraph = () => { downloadWorkspace(workspace); flash('Workspace exported.'); };
@@ -264,6 +358,7 @@ export default function App() {
       setLiveToken('');
       setLiveOpen(false);
       setSelected(null);
+      setPathStart(null);
       setLensDepth(0);
       setFrame(null);
       setMode('graph');
@@ -293,14 +388,14 @@ export default function App() {
       <header className="topbar"><div className="crumbs"><span>Workspace</span><ChevronRight size={15}/><strong>{mode === 'graph' ? 'Graph explorer' : mode === 'timeline' ? 'Timeline' : 'Node library'}</strong></div><div className="header-actions"><span className="autosave"><span className="status-dot" /> Saved locally</span><span className="header-divider"/><button type="button" className="btn btn-ghost" onClick={() => liveSession ? disconnectLive() : setLiveOpen(true)} title={liveSession ? 'Disconnect local collector' : 'Connect local AI collector'}><Radio size={15}/>{liveSession ? 'Disconnect' : 'Live connect'}</button><button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Import a MindTrace JSON workspace"><Upload size={16}/> Import</button><button type="button" className="btn btn-ghost" onClick={exportGraph}><ArrowDownToLine size={16}/> Export</button><button type="button" className="btn btn-primary" onClick={() => setEditorOpen(true)}><Plus size={16}/> New note</button></div></header>
       <main className="content">
         <div className="page-heading"><div className="hero-copy"><div className="eyebrow"><Sparkles size={13}/> 의심암귀 · THE OBSERVATORY <span className="eyebrow-divider"/> <span>疑心暗鬼 / LOCAL-FIRST</span></div><h1>{mode === 'graph' ? <>모든 답변에는 <em>흔적이 있다.</em></> : mode === 'timeline' ? <>흔적을 따라 <em>시간 속으로.</em></> : <>노드 하나까지 <em>의심하라.</em></>}</h1><p>{mode === 'graph' ? 'AI가 남긴 관측 가능한 실행과 근거를 하나의 지식 우주에서 탐험하세요.' : mode === 'timeline' ? '기록된 실행을 되짚어 보세요. 관측된 이벤트를 숨겨진 내부 사고와 혼동하지 않습니다.' : '기록과 근거, 메모리와 모델 호출, 연결 관계까지 한곳에서 확인하세요.'}</p></div><div className="heading-meta"><div><span className="metric-label">01 / SIGNALS</span><strong>{workspace.nodes.length.toLocaleString()}</strong><small>기록된 노드</small></div><div><span className="metric-label">02 / PATHWAYS</span><strong>{workspace.edges.length.toLocaleString()}</strong><small>연결된 관계</small></div><div className="metric-status"><span className="metric-label">03 / ORIGIN</span><strong><span className="metric-live-dot"/> {liveSession ? 'LIVE' : 'LOCAL'}</strong><small>{liveSession ? 'Collector linked' : 'Private workspace'}</small></div></div></div>
-        <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input ref={searchRef} aria-label="노드 검색" placeholder="흔적, 근거, 문서 검색..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>Ctrl / ⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{scoped.nodes.length} / {filtered.nodes.length} 노드</span>
+        <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input ref={searchRef} aria-label="노드 검색" placeholder="흔적, 근거, 문서 검색..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>Ctrl / ⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{viewport.graph.nodes.length} / {filtered.nodes.length} 노드</span>
         {mode !== 'library' && <div className="scope-switch" role="group" aria-label="관계 탐색 범위">
           <span className="scope-prefix"><Focus size={13}/> 관계 렌즈</span>
           {([0, 1, 2, 3] as const).map(depth => <button key={depth} type="button"
             aria-label={depth === 0 ? '전체 관계 표시' : `선택 노드에서 ${depth}단계 관계 표시`}
             title={depth === 0 ? '모든 노드 표시' : canFocus ? `선택한 노드에서 ${depth}단계 연결 탐색` : '먼저 노드를 선택하세요'}
             aria-pressed={lensDepth === depth}
-            disabled={depth > 0 && !canFocus}
+            disabled={depth > 0 && (!canFocus || pathStart !== null)}
             className={`scope-button ${lensDepth === depth ? 'active' : ''}`}
             onClick={() => setLensDepth(depth)}>{depth === 0 ? '전체' : `${depth}단계`}</button>)}
         </div>}
@@ -309,8 +404,13 @@ export default function App() {
           <div className="cosmos-aurora" aria-hidden="true"><div className="cosmos-ring ring-one"/><div className="cosmos-ring ring-two"/><div className="cosmos-crosshair"/></div>
           <div className="surface-top"><span className="telemetry-chip"><span className="pulse-dot"/> {liveSession ? liveState : workspace.isDemo ? 'SIMULATED CONSTELLATION' : 'PRIVATE KNOWLEDGE SPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> DRAG TO EXPLORE <span className="surface-marker">/</span> SCROLL TO ZOOM</span></div>
           <div className="surface-coordinates" aria-hidden="true"><span>疑 / EVIDENCE FIELD</span><span>{lensDepth === 0 || !canFocus ? 'GLOBAL CONSTELLATION' : `LOCAL LENS / ${lensDepth} HOPS`}</span></div>
-          {scoped.nodes.length ? <GraphCanvas nodes={scoped.nodes} edges={scoped.edges} selected={selected} onSelect={setSelected} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
+          {viewport.graph.nodes.length ? <GraphCanvas nodes={viewport.graph.nodes} edges={viewport.graph.edges}
+            selected={selected} path={recordedPath} onSelect={setSelected} cyRef={cyRef} layoutKey={layoutKey}/> : <div className="empty-graph"><Network size={30}/><strong>No matching nodes</strong><span>Try a different search or node filter.</span></div>}
           {immersive && selectedNode && <div className="immersive-node-panel" aria-live="polite"><span className="inspector-caption">SELECTED SIGNAL / {KIND_META[selectedNode.kind].label.toUpperCase()}</span><strong>{selectedNode.label}</strong><span>{EVIDENCE_META[selectedNode.evidence].label} · {neighbors.length} linked nodes</span></div>}
+          {(viewport.omittedNodes > 0 || viewport.omittedEdges > 0) && <div className="render-budget" role="status">
+            <Layers3 size={13}/> 화면 성능 보호: {viewport.omittedNodes.toLocaleString()}개 노드 · {viewport.omittedEdges.toLocaleString()}개 연결 생략
+            <span>검색하거나 관계 렌즈로 범위를 좁혀 주세요.</span>
+          </div>}
           <div className="graph-controls"><button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => cyRef.current?.zoom({ level: Math.min(3, (cyRef.current?.zoom() ?? 1) * 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomIn size={17}/></button><button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => cyRef.current?.zoom({ level: Math.max(.25, (cyRef.current?.zoom() ?? 1) / 1.25), renderedPosition: { x: (cyRef.current?.width() ?? 0) / 2, y: (cyRef.current?.height() ?? 0) / 2 } })}><ZoomOut size={17}/></button><div className="control-divider"/><button type="button" title="Fit graph" aria-label="Fit graph" onClick={() => cyRef.current?.fit(undefined, 55)}><Maximize size={17}/></button></div>
           <div className="legend"><span className="legend-title">SIGNAL KEY</span><span><i className="legend-line"/> Observed</span><span><i className="legend-line dashed"/> Reported / inferred</span><span><i className="legend-line dotted"/> Manual</span></div>
         </div>}
@@ -319,7 +419,31 @@ export default function App() {
       </main>
     </div>
 
-    <aside className="inspector"><div className="inspector-header"><div><Layers3 size={17}/> 근거 상세</div><button type="button" aria-label="Clear selection" title="Clear selection" onClick={() => setSelected(null)}><X size={16}/></button></div>{selectedNode ? <div className="inspector-body"><div className="inspector-caption">선택한 노드 / SELECTED SIGNAL</div><div className="node-symbol" style={{ color: KIND_META[selectedNode.kind].color, backgroundColor: `${KIND_META[selectedNode.kind].color}1b` }}><Network size={24}/></div><h2>{selectedNode.label}</h2><div className="node-tags"><span className="tag"><span className="type-dot" style={{ backgroundColor: KIND_META[selectedNode.kind].color }}/>{KIND_META[selectedNode.kind].label}</span><span className={`tag provenance evidence-${selectedNode.evidence}`}>{EVIDENCE_META[selectedNode.evidence].label}</span></div><div className="inspector-divider"/><div className="inspector-caption">설명 / DESCRIPTION</div><p className="node-description">{selectedNode.detail || 'No description provided.'}</p><div className="inspector-caption" style={{ marginTop: 26 }}>출처 / PROVENANCE</div><dl className="node-properties"><div><dt>Source</dt><dd>{selectedNode.source}</dd></div><div><dt>Recorded</dt><dd>{fmtDate(selectedNode.createdAt)}</dd></div><div><dt>Evidence</dt><dd>{EVIDENCE_META[selectedNode.evidence].label}</dd></div></dl><div className="provenance-info"><CircleHelp size={15}/>{EVIDENCE_META[selectedNode.evidence].help}</div><div className="inspector-divider"/><div className="connections-heading"><span>연결된 노드</span><span>{neighbors.length}</span></div><div className="connections-list">{neighbors.length ? neighbors.map(n => <button key={n.id} onClick={() => { setSelected(n.id); if (mode === 'timeline' && frame !== null) setFrame(null); }}><span className="type-dot" style={{ backgroundColor: KIND_META[n.kind].color }} /><span>{n.label}</span><ArrowRight size={13}/></button>) : <p className="muted small">No connections yet.</p>}</div><button type="button" className="btn btn-outline link-button" onClick={() => { setLinkOpen(x => !x); setLinkTarget(''); }}><Link2 size={15}/> Add manual connection</button>{linkOpen && <form className="link-form" onSubmit={addLink}><label>Connect to</label><select value={linkTarget} onChange={e => setLinkTarget(e.target.value)} required><option value="">Choose a node</option>{workspace.nodes.filter(n => n.id !== selectedNode.id).map(n => <option key={n.id} value={n.id}>{n.label}</option>)}</select><button className="btn btn-primary" type="submit">Create link</button></form>}</div> : <div className="inspector-placeholder"><GitFork size={32}/><strong>노드를 선택해 보세요</strong><p>관계망의 별을 클릭하면 출처와 근거, 연결 기록이 펼쳐집니다.</p></div>}
+    <aside className="inspector"><div className="inspector-header"><div><Layers3 size={17}/> 근거 상세</div><button type="button" aria-label="Clear selection" title="Clear selection" onClick={() => setSelected(null)}><X size={16}/></button></div>{selectedNode ? <div className="inspector-body"><div className="inspector-caption">선택한 노드 / SELECTED SIGNAL</div><div className="node-symbol" style={{ color: KIND_META[selectedNode.kind].color, backgroundColor: `${KIND_META[selectedNode.kind].color}1b` }}><Network size={24}/></div><h2>{selectedNode.label}</h2><div className="node-tags"><span className="tag"><span className="type-dot" style={{ backgroundColor: KIND_META[selectedNode.kind].color }}/>{KIND_META[selectedNode.kind].label}</span><span className={`tag provenance evidence-${selectedNode.evidence}`}>{EVIDENCE_META[selectedNode.evidence].label}</span></div>
+        <div className="route-panel" aria-label="기록된 연결 경로 탐색">
+          <div className="route-heading"><GitFork size={15}/><strong>근거 경로 추적</strong>
+            {pathStart && <button type="button" className="tiny-link" onClick={() => setPathStart(null)}>초기화</button>}
+          </div>
+          {!pathStart ? <p>이 노드를 출발점으로 지정한 다음, 관계망에서 다른 노드를 클릭해 보세요.</p>
+            : <p>출발점: <strong>{workspace.nodes.find(n => n.id === pathStart)?.label ?? pathStart}</strong></p>}
+          <div className="route-actions">
+            <button type="button" className="btn btn-outline" disabled={!canFocus}
+              onClick={() => { setPathStart(selectedNode.id); setLensDepth(0); setMode('graph'); }}>
+              <Focus size={14}/>{pathStart === selectedNode.id ? '출발점 선택됨' : '이 노드에서 시작'}
+            </button>
+            <label className="observed-toggle"><input type="checkbox" checked={pathObservedOnly}
+              onChange={event => setPathObservedOnly(event.target.checked)}/> 관측된 관계만</label>
+          </div>
+          {pathStart && !pathRequested && <div className="route-hint">도착할 노드를 선택하면 최단 연결 경로를 표시합니다.</div>}
+          {pathRequested && (recordedPath ? <div className="route-result">
+            <span className="route-hops">{recordedPath.edgeIds.length}단계 · 실제 기록된 연결</span>
+            <div className="route-steps">{recordedPath.nodeIds.map((id, index) => <button
+              type="button" key={id} onClick={() => setSelected(id)}
+              title={`경로 ${index + 1}번째 노드로 이동`}>{index + 1}. {workspace.nodes.find(n => n.id === id)?.label ?? id}</button>)}</div>
+          </div> : <div className="route-unreachable" role="status">현재 필터와 근거 조건에서 연결된 경로가 없습니다.</div>)}
+          <small>경로는 기록된 관계의 최단 탐색 결과입니다. 모델이 실제로 그 순서로 생각했다는 의미는 아닙니다.</small>
+        </div>
+        <div className="inspector-divider"/><div className="inspector-caption">설명 / DESCRIPTION</div><p className="node-description">{selectedNode.detail || 'No description provided.'}</p><div className="inspector-caption" style={{ marginTop: 26 }}>출처 / PROVENANCE</div><dl className="node-properties"><div><dt>Source</dt><dd>{selectedNode.source}</dd></div><div><dt>Recorded</dt><dd>{fmtDate(selectedNode.createdAt)}</dd></div><div><dt>Evidence</dt><dd>{EVIDENCE_META[selectedNode.evidence].label}</dd></div></dl><div className="provenance-info"><CircleHelp size={15}/>{EVIDENCE_META[selectedNode.evidence].help}</div><div className="inspector-divider"/><div className="connections-heading"><span>연결된 노드</span><span>{neighbors.length}</span></div><div className="connections-list">{neighbors.length ? neighbors.map(n => <button key={n.id} onClick={() => { setSelected(n.id); if (mode === 'timeline' && frame !== null) setFrame(null); }}><span className="type-dot" style={{ backgroundColor: KIND_META[n.kind].color }} /><span>{n.label}</span><ArrowRight size={13}/></button>) : <p className="muted small">No connections yet.</p>}</div><button type="button" className="btn btn-outline link-button" onClick={() => { setLinkOpen(x => !x); setLinkTarget(''); }}><Link2 size={15}/> Add manual connection</button>{linkOpen && <form className="link-form" onSubmit={addLink}><label>Connect to</label><select value={linkTarget} onChange={e => setLinkTarget(e.target.value)} required><option value="">Choose a node</option>{workspace.nodes.filter(n => n.id !== selectedNode.id).map(n => <option key={n.id} value={n.id}>{n.label}</option>)}</select><button className="btn btn-primary" type="submit">Create link</button></form>}</div> : <div className="inspector-placeholder"><GitFork size={32}/><strong>노드를 선택해 보세요</strong><p>관계망의 별을 클릭하면 출처와 근거, 연결 기록이 펼쳐집니다.</p></div>}
       <div className="inspector-footer"><span><ShieldCheck size={14}/> Provenance-aware by design</span></div>
     </aside>
 

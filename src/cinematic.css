@@ -427,3 +427,62 @@ body { background: var(--obs-bg); }
   .graph-surface { min-height:440px; }
 }
 @media(prefers-reduced-motion:reduce) { .scope-button { transition:none; } }
+
+
+/* Recorded route explorer — interactive, not a claim of causal reasoning. */
+.route-panel {
+  display: grid; gap: 12px; margin-top: 23px;
+  background: linear-gradient(145deg,#182341,#0f1b2f);
+  border: 1px solid #344768;
+  border-radius: 13px; padding: 16px;
+  box-shadow: inset 0 1px 0 #ffffff11, 0 15px 28px #0509173b;
+}
+.route-heading { display:flex; align-items:center; gap:8px; color:#c5d7ff; }
+.route-heading svg { color:#8acdf2; }
+.route-heading strong { font-size:12px; letter-spacing:-.2px; }
+.route-heading .tiny-link { margin-left:auto; }
+.route-panel>p { font-size:11px; line-height:1.65; color:#a4b4d2; word-break:keep-all; }
+.route-panel>p strong { color:#d5e7fb; }
+.route-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.route-actions .btn { flex:1 1 130px; border-color:#52629a; font-size:10px; }
+.observed-toggle {
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:10px; color:#a5bbd7; cursor:pointer; white-space:nowrap;
+}
+.observed-toggle input { accent-color:#79ddc7; }
+.route-panel>small { font-size:9px; color:#8095b5; line-height:1.65; }
+.route-hint,.route-unreachable {
+  border-radius:8px; padding:10px 11px; font-size:10px; line-height:1.5;
+  background:#152840; border:1px solid #324967; color:#9cc9e9;
+}
+.route-unreachable { background:#2c2327; border-color:#614553; color:#f2baba; }
+.route-result { display:grid; gap:10px; }
+.route-hops {
+  width:fit-content; font-size:10px; font-weight:800; color:#7ff2d4;
+  padding:5px 9px; border-radius:6px; letter-spacing:.3px;
+  background:#16413c70; border:1px solid #3f82735c;
+}
+.route-steps { display:flex; flex-wrap:wrap; gap:6px; }
+.route-steps button {
+  padding:7px 9px; max-width:100%; overflow-wrap:anywhere;
+  border:1px solid #3c5680; border-radius:7px;
+  color:#d7e9ff; background:#1b2c49; font-size:10px;
+  text-align:left; transition:border-color .18s, background .18s;
+}
+.route-steps button:hover { background:#2b4265; border-color:#74b7ed; }
+.render-budget {
+  position:absolute; top:112px; right:25px; z-index:4;
+  display:flex; align-items:center; flex-wrap:wrap; gap:7px;
+  max-width: min(450px, calc(100% - 40px));
+  padding:10px 12px; border:1px solid #586184; border-radius:9px;
+  background:#18223ad9; backdrop-filter:blur(14px);
+  color:#ffd5a2; font-size:10px; pointer-events:none;
+}
+.render-budget span { color:#99aacc; width:100%; }
+@media(max-width:760px) {
+  .route-panel { margin-top:15px; }
+  .render-budget { top:105px; left:14px; right:auto; font-size:9px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .route-steps button { transition:none; }
+}
