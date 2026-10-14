@@ -230,13 +230,27 @@ export default function App() {
   // A full-width immersive canvas otherwise inherits the old narrow camera.
   useEffect(() => {
     if (mode === 'library') return;
+    // Wait for the grid/panel geometry to settle, then fit the actual nodes.
+    // 'fit' can over-zoom a two-node neighborhood on an ultra-wide canvas.
     const raf = window.requestAnimationFrame(() => {
-      const cy = cyRef.current;
-      if (!cy || cy.destroyed() || cy.nodes().length === 0) return;
-      cy.resize();
-      cy.fit(undefined, immersive ? 90 : 60);
+      const inner = window.requestAnimationFrame(() => {
+        const cy = cyRef.current;
+        if (!cy || cy.destroyed() || cy.nodes().length === 0) return;
+        cy.stop();
+        cy.resize();
+        cy.fit(cy.nodes(), immersive ? 130 : 80);
+        if (cy.zoom() > 1.25) {
+          cy.zoom(1.25);
+          cy.center(cy.nodes());
+        }
+      });
+      second.current = inner;
     });
-    return () => window.cancelAnimationFrame(raf);
+    const second = { current: 0 };
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.cancelAnimationFrame(second.current);
+    };
   }, [immersive, lensDepth, mode]);
   const searchRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
