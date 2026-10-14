@@ -30,8 +30,8 @@ test('search keeps one-hop context and never invents edges', () => {
 
 test('kind filters remove connected edges with hidden endpoints', () => {
   const graph = getVisibleGraph(demoWorkspace, { query: '', kinds: ['prompt', 'model'] });
-  assert.equal(graph.nodes.length, 2);
-  assert.deepEqual(graph.edges.map(e => e.id), ['e1']);
+  assert.equal(graph.nodes.length, 6);
+  assert.deepEqual(graph.edges.map(e => e.id), ['e1', 's1', 't1']);
 });
 
 test('timeline filters both nodes and edges by event time', () => {
