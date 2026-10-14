@@ -24,6 +24,14 @@ Explore observable AI activity as an evidence graph. A local-first, Obsidian-ins
 - Cytoscape 재사용 및 증분 갱신으로 선택/수집 시 그래프 재생성 감소
 - 자세한 내용: [V0.4 개발 문서](docs/recorded-paths.md)
 
+## V0.8 — 명시적 trace ID와 그래프 탐색 비교
+
+- **FIELD MAP 미니맵**으로 현재 화면 위치 확인 및 클릭·방향키 이동
+- 별자리 그룹: 기존 **연결 기준** 외에 앱이 생성한 **실행 ID 기준** 그룹화
+- 시간 기록 화면에서 기준 시점을 선택해 실제 ID로 **노드·관계 변경량 비교**
+- 이전 JSON 스키마 호환 및 원문·API 키·비밀 추론 미수집 정책 유지
+- [V0.8 미니맵·시점 비교·trace ID 가이드](docs/trace-navigation.md)
+
 ## V0.7 — 별자리 관계망과 시맨틱 줌
 
 - 실제 노드·엣지만 사용하는 **연결 묶음 탐색기**, 묶음 집중 보기와 전체 복귀

@@ -910,3 +910,100 @@ body { background: var(--obs-bg); }
 @media(max-width:760px) {
   .app-shell.immersive .semantic-zoom-hud { top: 206px; }
 }
+
+
+/* V0.8 — mini-map, explicit run grouping and recorded timeline comparison. */
+.constellation-modes {
+  display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:-6px 0 17px;
+}
+.constellation-modes button {
+  background:#111c31;border:1px solid #3a4a70;color:#8fa4c9;
+  border-radius:7px;padding:8px 13px;font-size:10px;font-weight:750;
+  transition:background .15s,border-color .15s;
+}
+.constellation-modes button:hover {border-color:#878de1;color:#e2edff}
+.constellation-modes button[aria-pressed="true"] {
+  background:linear-gradient(120deg,#6265b780,#315c8c9c);
+  border-color:#9c9aff;color:#eff0ff;box-shadow:inset 0 1px #ced0ff20;
+}
+.constellation-modes small {margin-left:auto;color:#7187ac;font-size:9px;}
+.graph-minimap {
+  position:absolute;top:95px;right:23px;z-index:5;
+  width:210px;padding:9px 10px;
+  border:1px solid #55638897;border-radius:11px;
+  background:#101c31e0;backdrop-filter:blur(16px);
+  box-shadow:0 10px 30px #020713ae,inset 0 1px #dce2ff18;
+}
+.minimap-top,.minimap-footer {display:flex;justify-content:space-between;gap:7px;align-items:center}
+.minimap-top strong {color:#b8c7ec;font:800 9px Manrope,sans-serif;letter-spacing:1.2px}
+.minimap-top span,.minimap-footer {color:#7991b3;font:700 7px Manrope,sans-serif;letter-spacing:.65px}
+.graph-minimap canvas {
+  display:block;width:188px;height:122px;margin:7px 0;
+  border:1px solid #324969;border-radius:6px;
+  background:#0a1426;cursor:crosshair;touch-action:manipulation;
+}
+.graph-minimap canvas:focus-visible {outline:2px solid #b6b1ff;outline-offset:3px}
+.graph-minimap canvas:hover {border-color:#8b93d2}
+.graph-surface .render-budget {top:265px;}
+.timeline-diff {
+  position:relative;margin-top:18px;padding:25px 27px 23px;
+  border:1px solid #3d5274;border-radius:16px;
+  background:linear-gradient(132deg,#17263f,#101a2f 62%,#132136);
+  box-shadow:0 22px 55px #03071073,inset 0 1px #dceaff0d;
+}
+.diff-heading {display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:22px}
+.diff-heading>div {display:grid;gap:6px}
+.diff-heading .eyebrow {color:#a7abfe}
+.diff-heading h2 {
+  font:850 24px/1.28 'Pretendard','Apple SD Gothic Neo',Manrope,sans-serif;
+  letter-spacing:-1px;color:#f0f4ff;
+}
+.diff-heading h2 em {font-style:normal;color:#9bdadf}
+.diff-heading p {font-size:10px;color:#8c9fbe;line-height:1.65}
+.diff-heading>svg {color:#8e8ff5}
+.diff-range {
+  display:grid;gap:8px;padding:17px 18px;border-radius:11px;
+  background:#0b1529a8;border:1px solid #36466b;
+}
+.diff-range label,.diff-target {font-size:10px;color:#8199bd;display:flex;justify-content:space-between;gap:15px}
+.diff-range label strong,.diff-target strong {color:#d3def7}
+.diff-range input {width:100%;accent-color:#9993f2;cursor:pointer}
+.diff-arrow {display:flex;justify-content:space-between;align-items:center;gap:5px;color:#657b9d;font:700 8px Manrope,sans-serif;letter-spacing:1px}
+.diff-arrow svg {color:#9cb6d6}
+.diff-stat-grid {display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-top:14px}
+.diff-stat {
+  display:grid;gap:8px;padding:14px 12px;border:1px solid #354766;
+  border-radius:10px;background:#111f37;min-width:0;
+}
+.diff-stat svg {color:#8d9fff}
+.diff-stat.positive svg {color:#72dab7}
+.diff-stat.negative svg {color:#f4a6af}
+.diff-stat strong {font:800 21px Manrope,sans-serif;color:#e3efff;font-variant-numeric:tabular-nums}
+.diff-stat span {font-size:10px;color:#8498b8}
+.diff-disclaimer {
+  margin-top:14px;font-size:10px;line-height:1.65;
+  color:#879cba;word-break:keep-all;
+}
+@media(max-width:1250px) {
+  .diff-stat-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:760px) {
+  .constellation-modes {gap:6px}
+  .constellation-modes small {width:100%;margin:5px 0 0}
+  .graph-minimap {
+    width:148px;top:99px;right:11px;padding:7px 8px;
+  }
+  .graph-minimap canvas {width:130px;height:85px}
+  .graph-surface .render-budget {top:229px}
+  .minimap-top span,.minimap-footer {font-size:6px}
+  .timeline-diff {padding:18px 14px}
+  .diff-heading h2 {font-size:21px}
+  .diff-range {padding:13px 11px}
+  .diff-stat-grid {gap:6px}
+  .diff-stat {padding:10px 8px}
+  .diff-stat strong {font-size:19px}
+  .diff-stat span {font-size:9px}
+}
+@media(prefers-reduced-motion:reduce) {
+  .constellation-modes button {transition:none}
+}

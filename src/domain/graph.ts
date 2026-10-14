@@ -18,6 +18,8 @@ export type GraphNode = {
   createdAt: string;
   source: string;
   evidence: EvidenceLevel;
+  /** Optional application-generated opaque trace identifier; never provider response IDs. */
+  traceId?: string;
 };
 export type GraphEdge = {
   id: string;
@@ -26,6 +28,7 @@ export type GraphEdge = {
   kind: EdgeKind;
   createdAt: string;
   evidence: EvidenceLevel;
+  traceId?: string;
 };
 export type Workspace = {
   schemaVersion: 1;
@@ -48,6 +51,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
 const isIsoTime = (value: unknown): value is string =>
   isNonEmptyString(value) && /^\d{4}-\d\d-\d\dT/.test(value) && !Number.isNaN(Date.parse(value));
+const isTraceId = (id: unknown): id is string =>
+  typeof id === 'string' && /^[A-Za-z0-9_-]{8,80}$/.test(id);
+const validTrace = (value: Record<string, unknown>): boolean =>
+  value.traceId === undefined || isTraceId(value.traceId);
 const has = <T extends string>(values: readonly T[], item: unknown): item is T => typeof item === 'string' && values.includes(item as T);
 
 export function isWorkspace(value: unknown): value is Workspace {
@@ -59,7 +66,7 @@ export function isWorkspace(value: unknown): value is Workspace {
   for (const node of value.nodes) {
     if (!isRecord(node) || !isNonEmptyString(node.id) || nodeIds.has(node.id) ||
         !has(NODE_KINDS, node.kind) || !isNonEmptyString(node.label) || typeof node.detail !== 'string' ||
-        !isIsoTime(node.createdAt) || !isNonEmptyString(node.source) || !has(EVIDENCE_LEVELS, node.evidence)) return false;
+        !isIsoTime(node.createdAt) || !isNonEmptyString(node.source) || !has(EVIDENCE_LEVELS, node.evidence) || !validTrace(node)) return false;
     nodeIds.add(node.id);
   }
   const edgeIds = new Set<string>();
@@ -68,7 +75,7 @@ export function isWorkspace(value: unknown): value is Workspace {
         !isNonEmptyString(edge.source) || !nodeIds.has(edge.source) ||
         !isNonEmptyString(edge.target) || !nodeIds.has(edge.target) ||
         !has(EDGE_KINDS, edge.kind) || !isIsoTime(edge.createdAt) ||
-        !has(EVIDENCE_LEVELS, edge.evidence)) return false;
+        !has(EVIDENCE_LEVELS, edge.evidence) || !validTrace(edge)) return false;
     edgeIds.add(edge.id);
   }
   return true;

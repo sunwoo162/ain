@@ -113,3 +113,52 @@ test('모바일: 클러스터 선택과 복귀가 가능하고 페이지 가로 
     fullPage: true, animations: 'disabled',
   });
 });
+
+
+test('V0.8: 미니맵으로 실제 그래프 카메라 이동, 묶음 기준 전환', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  const minimap=page.locator('.graph-minimap canvas');
+  await expect(minimap).toBeVisible();
+  await expect(minimap).toHaveAttribute('role','button');
+  const navigator=page.getByRole('region',{name:'연결된 실행 묶음 탐색'});
+  const mode=navigator.getByRole('group',{name:'기록 묶음 기준'});
+  await mode.getByRole('button',{name:'실행 ID 기준'}).click();
+  await expect(mode.getByRole('button',{name:'실행 ID 기준'})).toHaveAttribute('aria-pressed','true');
+  await expect(navigator.getByText('ID 미지정').first()).toBeVisible();
+  await mode.getByRole('button',{name:'연결 기준'}).click();
+  await expect(navigator.getByRole('button',{name:/연결 묶음 1:/})).toBeVisible();
+  await minimap.click({position:{x:26,y:29}});
+  await minimap.focus();
+  await page.keyboard.press('ArrowRight');
+  await page.screenshot({path:testInfo.outputPath('uisim-minimap-desktop.png'),
+    fullPage:true,animations:'disabled'});
+  expect(errors).toEqual([]);
+});
+
+test('V0.8: 기록 타임라인 두 시점 비교는 실제 추가 이벤트를 집계', async ({page},testInfo) => {
+  await page.goto('/');
+  await page.getByRole('button',{name:'시간 기록'}).click();
+  const diff=page.getByRole('region',{name:'그래프 두 시점 비교'});
+  await expect(diff).toBeVisible();
+  await expect(diff.locator('.diff-stat').first()).toContainText('25');
+  await expect(diff.locator('.diff-stat').nth(3)).toContainText('28');
+  const baseline=diff.getByRole('slider',{name:/기준 시점/});
+  await baseline.fill(String(await baseline.getAttribute('max')));
+  await expect(diff.locator('.diff-stat').first()).toContainText('0');
+  await page.screenshot({path:testInfo.outputPath('uisim-timeline-diff-desktop.png'),
+    fullPage:true,animations:'disabled'});
+});
+
+test('V0.8 모바일: 미니맵과 비교 패널 가로 넘침 없이 표시',async ({page},testInfo)=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/');
+  await expect(page.locator('.graph-minimap canvas')).toBeVisible();
+  await page.getByRole('button',{name:'시간 기록'}).click();
+  await expect(page.getByRole('region',{name:'그래프 두 시점 비교'})).toBeVisible();
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
+  expect(overflow).toBe(false);
+  await page.screenshot({path:testInfo.outputPath('uisim-timeline-diff-mobile.png'),
+    fullPage:true,animations:'disabled'});
+});

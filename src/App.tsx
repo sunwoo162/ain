@@ -15,6 +15,9 @@ import { demoWorkspace } from './data/demo';
 import { mergeLiveWorkspace } from './domain/trace';
 import { EventChronicle } from './components/EventChronicle';
 import { ConstellationExplorer } from './components/ConstellationExplorer';
+import { GraphMinimap } from './components/GraphMinimap';
+import { TimelineDiff } from './components/TimelineDiff';
+import { groupByTraceId } from './domain/trace-groups';
 import { findConnectedClusters, filterToCluster, semanticZoomLevel, type ZoomLevel } from './domain/clusters';
 import { getNeighborhoodGraph, type LensDepth } from './domain/explore';
 import { findRecordedPath, planGraphViewport, type RecordedPath } from './domain/paths';
@@ -239,6 +242,8 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [lensDepth, setLensDepth] = useState<LensDepth>(0);
   const [clusterId, setClusterId] = useState<string | null>(null);
+  const [groupMode, setGroupMode] = useState<'connected'|'trace'>('connected');
+  const [diffBaseline, setDiffBaseline] = useState(0);
   const [zoomTier, setZoomTier] = useState<ZoomLevel>('explore');
   const [pathStart, setPathStart] = useState<string | null>(null);
   const [pathObservedOnly, setPathObservedOnly] = useState(false);
@@ -291,7 +296,10 @@ export default function App() {
   const currentFrame = frame === null ? frames.length : Math.min(frame, frames.length);
   const asOf = currentFrame === frames.length ? undefined : frames[Math.max(0, currentFrame - 1)];
   const filtered = useMemo(() => getVisibleGraph(workspace, { query, kinds, asOf }), [workspace, query, kinds, asOf]);
-  const clusters = useMemo(() => findConnectedClusters(filtered), [filtered]);
+  const clusters = useMemo(
+    () => groupMode === 'trace' ? groupByTraceId(filtered) : findConnectedClusters(filtered),
+    [filtered, groupMode],
+  );
   const activeCluster = useMemo(
     () => clusters.find(cluster => cluster.id === clusterId) ?? null,
     [clusters, clusterId],
@@ -412,7 +420,7 @@ export default function App() {
     try {
       if (file.size > MAX_IMPORT_BYTES) throw new Error('Import must be under 2 MB.');
       const next = parseImport(await file.text());
-      setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setPathStart(null); setClusterId(null); setLensDepth(0); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
+      setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setPathStart(null); setClusterId(null); setDiffBaseline(0); setLensDepth(0); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
       flash(`Imported ${next.nodes.length} nodes.`);
     } catch (err) { flash(err instanceof Error ? err.message : 'Invalid import.'); }
     finally { event.target.value = ''; }
@@ -420,7 +428,7 @@ export default function App() {
   const reset = () => {
     if (!window.confirm('Replace this local workspace with the sample graph? Export your data first if you want to keep it.')) return;
     setLiveSession(null); setLiveState('연결 안 됨');
-    setWorkspace(structuredClone(demoWorkspace)); setSelected(null); setPathStart(null); setClusterId(null); setLensDepth(0); setFrame(null);
+    setWorkspace(structuredClone(demoWorkspace)); setSelected(null); setPathStart(null); setClusterId(null); setDiffBaseline(0); setLensDepth(0); setFrame(null);
     setQuery(''); setKinds([...NODE_KINDS]); flash('Restored sample graph.');
   };
   const exportGraph = () => { downloadWorkspace(workspace); flash('Workspace exported.'); };
@@ -441,6 +449,7 @@ export default function App() {
       setSelected(null);
       setPathStart(null);
       setClusterId(null);
+      setDiffBaseline(0);
       setLensDepth(0);
       setFrame(null);
       setMode('graph');
@@ -490,6 +499,11 @@ export default function App() {
         {mode === 'graph' && <ConstellationExplorer
           clusters={clusters}
           activeId={activeCluster?.id ?? null}
+          groupMode={groupMode}
+          onGroupModeChange={mode => {
+            setGroupMode(mode);
+            setClusterId(null); setSelected(null); setPathStart(null); setLensDepth(0);
+          }}
           totalNodes={filtered.nodes.length}
           onPick={id => {
             setClusterId(id);
@@ -516,6 +530,7 @@ export default function App() {
           <div className="cosmos-aurora" aria-hidden="true"><div className="cosmos-ring ring-one"/><div className="cosmos-ring ring-two"/><div className="cosmos-crosshair"/></div>
           <div className="surface-top"><span className="telemetry-chip"><span className="pulse-dot"/> {liveSession ? liveState : workspace.isDemo ? 'SIMULATED CONSTELLATION' : 'PRIVATE KNOWLEDGE SPACE'}</span><span className="surface-note"><MousePointer2 size={13}/> DRAG TO EXPLORE <span className="surface-marker">/</span> SCROLL TO ZOOM</span></div>
           <div className="surface-coordinates" aria-hidden="true"><span>疑 / EVIDENCE FIELD</span><span>{activeCluster ? 'SELECTED CONSTELLATION' : lensDepth === 0 || !canFocus ? 'GLOBAL CONSTELLATION' : `LOCAL LENS / ${lensDepth} HOPS`}</span></div>
+          <GraphMinimap cyRef={cyRef} graphRevision={viewport.graph}/>
           <div className="semantic-zoom-hud" role="status" aria-label="그래프 확대 단계">
             <span className={`semantic-led ${zoomTier}`}/>
             <strong>{zoomTier === 'overview' ? '은하 조망' : zoomTier === 'detail' ? '세부 분석' : '관계 탐색'}</strong>
@@ -532,6 +547,12 @@ export default function App() {
           <div className="legend"><span className="legend-title">SIGNAL KEY</span><span><i className="legend-line"/> Observed</span><span><i className="legend-line dashed"/> Reported / inferred</span><span><i className="legend-line dotted"/> Manual</span></div>
         </div>}
         {(mode === 'timeline' || frame !== null) && <div className="timeline-card"><div className="timeline-label"><Clock3 size={16}/> <strong>Event replay</strong><span>{frames.length ? (currentFrame === frames.length ? 'All events' : currentFrame === 0 ? 'Before first event' : fmtDate(frames[currentFrame - 1]!)) : 'No events'}</span></div><div className="timeline-controls"><button type="button" aria-label="Previous event" onClick={() => cycleFrame(-1)} disabled={currentFrame <= 0}>‹</button><input type="range" aria-label="Event position" min="0" max={frames.length} value={currentFrame} onChange={e => setFrame(Number(e.target.value))}/><button type="button" aria-label="Next event" onClick={() => cycleFrame(1)} disabled={currentFrame >= frames.length}>›</button><button type="button" className="tiny-link" onClick={() => setFrame(null)}>Latest</button></div><small>{currentFrame} / {frames.length} events</small></div>}
+        {mode === 'timeline' && <TimelineDiff
+          workspace={workspace}
+          baseline={Math.min(diffBaseline, frames.length)}
+          onBaseline={setDiffBaseline}
+          targetFrame={currentFrame}
+        />}
         {mode === 'timeline' && <EventChronicle
           nodes={filtered.nodes}
           selected={selected}

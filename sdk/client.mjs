@@ -20,11 +20,20 @@ export function createTraceClient({ token, baseUrl = 'http://127.0.0.1:4318', so
     if (!response.ok) throw new Error(`Trace collector responded with HTTP ${response.status}`);
     return response.json();
   };
-  const node = ({ id, kind, label, detail = '', evidence = 'observed', createdAt = new Date().toISOString() }) => ({
-    type: 'node', node: { id, kind, label, detail, createdAt, source, evidence },
+  const safeTraceId = traceId => {
+    if (traceId === undefined) return undefined;
+    if (typeof traceId !== 'string' || !/^[A-Za-z0-9_-]{8,80}$/.test(traceId)) {
+      throw new TypeError('traceId must be an opaque 8–80 character identifier.');
+    }
+    return traceId;
+  };
+  const node = ({ id, kind, label, detail = '', evidence = 'observed', traceId, createdAt = new Date().toISOString() }) => ({
+    type: 'node', node: { id, kind, label, detail, createdAt, source, evidence,
+      ...(traceId === undefined ? {} : { traceId: safeTraceId(traceId) }) },
   });
-  const edge = ({ id, source: from, target, kind, evidence = 'observed', createdAt = new Date().toISOString() }) => ({
-    type: 'edge', edge: { id, source: from, target, kind, createdAt, evidence },
+  const edge = ({ id, source: from, target, kind, evidence = 'observed', traceId, createdAt = new Date().toISOString() }) => ({
+    type: 'edge', edge: { id, source: from, target, kind, createdAt, evidence,
+      ...(traceId === undefined ? {} : { traceId: safeTraceId(traceId) }) },
   });
   return { send, node, edge };
 }
