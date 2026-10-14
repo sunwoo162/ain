@@ -165,11 +165,11 @@ export function createStreamingObservers({
     const model = body.model; // Validated identifier, never user-generated text.
     const node = (suffix, kind, label, detail, timestamp) => traceClient.node({
       id: `${run}-${suffix}`, kind, label, detail,
-      evidence: 'observed', createdAt: timestamp,
+      evidence: 'observed', traceId: run.slice(`stream-${provider}-`.length), createdAt: timestamp,
     });
     const edge = (suffix, source, target, kind, timestamp) => traceClient.edge({
       id: `${run}-${suffix}`, source: `${run}-${source}`,
-      target: `${run}-${target}`, kind, evidence: 'observed', createdAt: timestamp,
+      target: `${run}-${target}`, kind, evidence: 'observed', traceId: run.slice(`stream-${provider}-`.length), createdAt: timestamp,
     });
     let queue = Promise.resolve();
     const send = events => {

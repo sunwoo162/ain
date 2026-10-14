@@ -95,15 +95,15 @@ export function createProviderObservers({
       traceClient.node({
         id: `${prefix}-request`, kind: 'prompt', label: `${service} API 요청`,
         detail: '요청이 발생했다는 사실만 기록했습니다. 질문 본문은 수집하지 않습니다.',
-        createdAt: startedAt, evidence: 'observed',
+        createdAt: startedAt, evidence: 'observed', traceId: runId, traceId: runId,
       }),
       traceClient.node({
         id: `${prefix}-model`, kind: 'model', label: `${service} · ${allowedModel(model)}`,
-        detail: `${service} HTTP 호출 · non-streaming`, createdAt: startedAt, evidence: 'observed',
+        detail: `${service} HTTP 호출 · non-streaming`, createdAt: startedAt, evidence: 'observed', traceId: runId,
       }),
       traceClient.edge({
         id: `${prefix}-request-model`, source: `${prefix}-request`,
-        target: `${prefix}-model`, kind: 'input-to', createdAt: startedAt, evidence: 'observed',
+        target: `${prefix}-model`, kind: 'input-to', createdAt: startedAt, evidence: 'observed', traceId: runId,
       }),
     ];
 
@@ -111,23 +111,23 @@ export function createProviderObservers({
       events.push(traceClient.node({
         id: `${prefix}-error`, kind: 'error', label: `${service} 요청 실패`,
         detail: `HTTP ${status ?? 'network'} · ${elapsed}ms`,
-        createdAt: observedAt, evidence: 'observed',
+        createdAt: observedAt, evidence: 'observed', traceId: runId,
       }));
       events.push(traceClient.edge({
         id: `${prefix}-error-link`, source: `${prefix}-model`,
         target: `${prefix}-error`, kind: 'related',
-        createdAt: observedAt, evidence: 'observed',
+        createdAt: observedAt, evidence: 'observed', traceId: runId,
       }));
     } else {
       events.push(traceClient.node({
         id: `${prefix}-answer`, kind: 'answer', label: `${service} 응답 수신`,
         detail: metadata(provider, result, elapsed, status),
-        createdAt: observedAt, evidence: 'observed',
+        createdAt: observedAt, evidence: 'observed', traceId: runId,
       }));
       events.push(traceClient.edge({
         id: `${prefix}-answer-link`, source: `${prefix}-model`,
         target: `${prefix}-answer`, kind: 'produced',
-        createdAt: observedAt, evidence: 'observed',
+        createdAt: observedAt, evidence: 'observed', traceId: runId,
       }));
       // A provider can REQUEST a tool call. This is not proof that the tool ran.
       const toolCount = Math.min(providerToolCount(provider, result), 50);
@@ -135,12 +135,12 @@ export function createProviderObservers({
         events.push(traceClient.node({
           id: `${prefix}-tool`, kind: 'tool', label: `${service} 도구 호출 요청 ${toolCount}건`,
           detail: '모델 응답에 도구 호출 요청이 포함되었습니다. 실제 도구 실행 여부는 확인하지 않았습니다.',
-          createdAt: observedAt, evidence: 'reported',
+          createdAt: observedAt, evidence: 'reported', traceId: runId,
         }));
         events.push(traceClient.edge({
           id: `${prefix}-tool-link`, source: `${prefix}-model`,
           target: `${prefix}-tool`, kind: 'related',
-          createdAt: observedAt, evidence: 'reported',
+          createdAt: observedAt, evidence: 'reported', traceId: runId,
         }));
       }
     }
