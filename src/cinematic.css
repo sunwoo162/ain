@@ -680,3 +680,18 @@ body { background: var(--obs-bg); }
   .chronicle-event-text strong { font-size:11px; }
 }
 @media(prefers-reduced-motion:reduce) { .chronicle-event { transition:none; } }
+
+
+/* Restore primary navigation on small screens. It must never be hidden. */
+@media(max-width:760px) {
+  .sidebar .nav-list {
+    display:flex; gap:5px; overflow-x:auto; max-width:100%; padding:4px 0 6px;
+    scrollbar-width:thin; scrollbar-color:#4b5687 transparent;
+  }
+  .sidebar .nav-item {
+    flex:0 0 auto; width:auto; min-height:34px;
+    padding:0 10px; font-size:11px; gap:6px;
+  }
+  .sidebar .nav-key { display:none; }
+  .sidebar .brand { padding-bottom:10px; }
+}

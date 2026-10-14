@@ -15,3 +15,14 @@ jobs:
       - run: npm run test
       - run: npm run typecheck
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - name: UI screenshots and browser traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uisim-browser-evidence
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
