@@ -1,0 +1,31 @@
+{
+  "name": "mindtrace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "collector": "node --disable-warning=ExperimentalWarning --experimental-strip-types server/collector.mjs",
+    "demo:trace": "node examples/send-trace.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test tests/*.test.ts tests/*.test.mjs",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "cytoscape": "^3.30.4",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/cytoscape": "^3.21.9",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.0"
+  },
+  "engines": {"node": ">=22.10.0"}
+}
