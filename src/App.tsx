@@ -13,6 +13,7 @@ import {
 } from './domain/graph';
 import { demoWorkspace } from './data/demo';
 import { mergeLiveWorkspace } from './domain/trace';
+import { EventChronicle } from './components/EventChronicle';
 import { getNeighborhoodGraph, type LensDepth } from './domain/explore';
 import { findRecordedPath, planGraphViewport, type RecordedPath } from './domain/paths';
 import { downloadWorkspace, loadWorkspace, MAX_IMPORT_BYTES, parseImport, saveWorkspace } from './lib/storage';
@@ -447,6 +448,17 @@ export default function App() {
           <div className="legend"><span className="legend-title">SIGNAL KEY</span><span><i className="legend-line"/> Observed</span><span><i className="legend-line dashed"/> Reported / inferred</span><span><i className="legend-line dotted"/> Manual</span></div>
         </div>}
         {(mode === 'timeline' || frame !== null) && <div className="timeline-card"><div className="timeline-label"><Clock3 size={16}/> <strong>Event replay</strong><span>{frames.length ? (currentFrame === frames.length ? 'All events' : currentFrame === 0 ? 'Before first event' : fmtDate(frames[currentFrame - 1]!)) : 'No events'}</span></div><div className="timeline-controls"><button type="button" aria-label="Previous event" onClick={() => cycleFrame(-1)} disabled={currentFrame <= 0}>‹</button><input type="range" aria-label="Event position" min="0" max={frames.length} value={currentFrame} onChange={e => setFrame(Number(e.target.value))}/><button type="button" aria-label="Next event" onClick={() => cycleFrame(1)} disabled={currentFrame >= frames.length}>›</button><button type="button" className="tiny-link" onClick={() => setFrame(null)}>Latest</button></div><small>{currentFrame} / {frames.length} events</small></div>}
+        {mode === 'timeline' && <EventChronicle
+          nodes={filtered.nodes}
+          selected={selected}
+          isLive={liveSession !== null}
+          onSelect={node => {
+            setSelected(node.id);
+            setPathStart(null);
+            setLensDepth(0);
+            setFrame(null);
+          }}
+        />}
         <div className="under-graph"><div><Activity size={15}/><span>Graph connections describe recorded relationships, not private model thoughts.</span></div><a href="https://github.com/sunwoo162/ain#evidence-model" target="_blank" rel="noreferrer">Evidence model <ArrowRight size={13}/></a></div>
       </main>
     </div>

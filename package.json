@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test tests/*.test.ts tests/*.test.mjs",
     "typecheck": "tsc -b",
-    "demo:providers": "node examples/observe-providers.mjs"
+    "demo:providers": "node examples/observe-providers.mjs",
+    "demo:stream": "node examples/demo-stream.mjs"
   },
   "dependencies": {
     "cytoscape": "^3.30.4",

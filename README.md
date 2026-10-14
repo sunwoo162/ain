@@ -24,6 +24,14 @@ Explore observable AI activity as an evidence graph. A local-first, Obsidian-ins
 - Cytoscape 재사용 및 증분 갱신으로 선택/수집 시 그래프 재생성 감소
 - 자세한 내용: [V0.4 개발 문서](docs/recorded-paths.md)
 
+## V0.6 — 스트리밍 메타데이터 및 시간 이벤트
+
+- OpenAI / Claude **SSE**, Ollama **NDJSON** 응답을 변형하지 않고 전달
+- 요청·첫 청크 수신·완료/실패 시점을 실제 시간으로 기록하고 토큰 사용량은 최종 메타데이터에서만 추출
+- 기록된 노드의 최신 48개를 **시간순 이벤트 타임라인**에서 확인하고 클릭하면 그래프에서 선택
+- 모의 스트림 예제: `npm run demo:stream`
+- 연동 설명: [스트리밍 및 타임라인 가이드](docs/streaming.md)
+
 ## V0.5 — 실제 AI API 이벤트 연동
 
 - **OpenAI Responses / Claude Messages / 로컬 Ollama Chat** 비스트리밍 호출 관측
