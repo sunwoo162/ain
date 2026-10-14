@@ -156,6 +156,7 @@ export default function App() {
     let stopped = false;
     let pending = false;
     let hasSynced = false;
+    let lastSnapshot: string | null = null;
     const controller = new AbortController();
     const refresh = async () => {
       if (pending || stopped) return;
@@ -169,11 +170,14 @@ export default function App() {
         if (!response.ok) throw new Error(`HTTP ${response.status} — 수집기 연결 실패`);
         const raw = await response.text();
         if (raw.length > MAX_IMPORT_BYTES) throw new Error('수집 그래프가 2 MB를 초과했습니다.');
-        const incoming = parseImport(raw);
-        if (stopped) return;
-        setWorkspace(previous => hasSynced ? mergeLiveWorkspace(previous, incoming) : incoming);
-        hasSynced = true;
-        setLiveState('연결됨 · 2초마다 갱신');
+        if (raw !== lastSnapshot) {
+          const incoming = parseImport(raw);
+          if (stopped) return;
+          setWorkspace(previous => hasSynced ? mergeLiveWorkspace(previous, incoming) : incoming);
+          lastSnapshot = raw;
+          hasSynced = true;
+        }
+        if (!stopped) setLiveState('연결됨 · 2초마다 갱신');
       } catch (error) {
         if (!stopped) setLiveState(error instanceof Error ? error.message : '수집기 연결 실패');
       } finally { pending = false; }
