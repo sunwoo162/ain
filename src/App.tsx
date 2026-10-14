@@ -403,9 +403,14 @@ export default function App() {
         if (raw !== lastSnapshot) {
           const incoming = parseImport(raw);
           if (stopped) return;
-          setWorkspace(previous => hasSynced ? mergeLiveWorkspace(previous, incoming) : incoming);
-          lastSnapshot = raw;
+          // Capture whether THIS response is the first snapshot before React
+          // schedules the state updater. Reading a mutable flag from inside
+          // the updater can accidentally carry demo-only manual notes into
+          // the real collector graph.
+          const firstSync = !hasSynced;
           hasSynced = true;
+          lastSnapshot = raw;
+          setWorkspace(previous => firstSync ? incoming : mergeLiveWorkspace(previous, incoming));
         }
         if (!stopped) setLiveState('연결됨 · 2초마다 갱신');
       } catch (error) {
