@@ -226,6 +226,18 @@ export default function App() {
   const [liveState, setLiveState] = useState('연결 안 됨');
   const [providerHelpOpen, setProviderHelpOpen] = useState(false);
   const cyRef = useRef<Core | null>(null);
+  // Fit only when changing presentation modes, not on every live graph update.
+  // A full-width immersive canvas otherwise inherits the old narrow camera.
+  useEffect(() => {
+    if (mode === 'library') return;
+    const raf = window.requestAnimationFrame(() => {
+      const cy = cyRef.current;
+      if (!cy || cy.destroyed() || cy.nodes().length === 0) return;
+      cy.resize();
+      cy.fit(undefined, immersive ? 90 : 60);
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [immersive, lensDepth, mode]);
   const searchRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const frames = useMemo(() => timelineFrames(workspace), [workspace]);
