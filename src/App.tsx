@@ -123,6 +123,11 @@ function GraphCanvas({
           'border-color': '#eafcff', 'border-width': 4, 'background-color': 'data(color)', opacity: 1, 'overlay-opacity': 0.1,
         } },
         { selector: 'edge.connected', style: { opacity: 1, width: 2.2, 'line-color': '#9acbfa', 'target-arrow-color': '#9acbfa' } },
+        // Highlighted routes must remain visible even in far-away semantic zoom.
+        { selector: 'edge.route-edge.semantic-overview', style: {
+          opacity: 1, width: 4.2, 'line-color': '#74e4f4', 'target-arrow-color': '#74e4f4',
+        } },
+        { selector: 'node.focused.semantic-overview', style: { 'text-opacity': 1 } },
       ],
       layout: { name: 'preset' },
     });
