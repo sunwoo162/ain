@@ -4,7 +4,7 @@ import type { Workspace } from '../domain/graph';
 import { timelineFrames } from '../domain/graph';
 import { compareTimelineFrames } from '../domain/trace-groups';
 
-const label=(timestamp:string|null)=>timestamp?new Intl.DateTimeFormat('ko-KR',{
+const label=(timestamp:string|null|undefined)=>timestamp?new Intl.DateTimeFormat('ko-KR',{
   month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',
 }).format(new Date(timestamp)):'기록 시작 이전';
 
