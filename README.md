@@ -1,168 +1,114 @@
-# 의심암귀 (疑心暗鬼) — MindTrace
+# 의심암귀 (疑心暗鬼) — Evidence Universe
 
-**믿기 전에, 근거를 추적하라.** AI의 실제 실행 이벤트와 기록된 출처를 연결해 탐색하는 오픈소스 관계망입니다.
+**믿기 전에, 근거를 추적하라.**
 
-**English codename: MindTrace · Brand: 의심암귀 (UISIM)**
+의심암귀(UISIM, 코드명 MindTrace)는 개발자가 **직접 연결한 AI API 실행 이벤트**를 로컬 그래프에 기록하고, 관계·출처·시간 흐름을 탐색하는 오픈소스 도구입니다.
 
-Explore observable AI activity as an evidence graph. A local-first, Obsidian-inspired open-source workspace for tracing prompts, tools, retrieval, memory, source documents, generated answers, and human annotations.
+> **현재 상태: V1.0.0 RC1 (정식 출시 전).** 자동화된 검증은 통과했으나 실제 AI 모델·실기기 성능 검증과 리뷰가 남아 있습니다. [RC1 릴리스 검증 문서](docs/release-rc1.md)
 
-> **Important:** MindTrace cannot read a model's private hidden thoughts. `observed` means an integration recorded an event; it does **not** mean the model relied on that event while reasoning. Demo data is synthetic.
+**지원 범위:** 사용자가 자신의 Node.js 프로그램에 연동한 OpenAI Responses, Anthropic Messages, 로컬 Ollama Chat 호출 및 수동으로 전송한 SDK 이벤트. ChatGPT·Claude 웹사이트 내부의 기존 대화나 AI 모델의 숨겨진 사고 과정은 읽을 수 없습니다.
 
-## V1.0.0 RC1 — 첫 사용 가능 버전 준비
+## 1분 체험 — API 키 없이 시작하기
 
-- 처음 방문자를 위한 **3단계 빠른 시작 안내**, 닫기 및 다시 열기
-- 실제 로컬 수집기·SDK·브라우저를 잇는 E2E 테스트와 인증/데이터 보존 회귀 검증
-- CI에서 전체 기능·타입·빌드·브라우저·합성 성능 검증 유지
-- **아직 정식 1.0 출시가 아닙니다.** RC1 실행·릴리스 차단 조건: [V1.0 RC1 점검표](docs/release-rc1.md)
-
-## 주요 화면 경험
-
-- 우주 관측소 스타일의 로컬 우선 그래프, 노드와 관계의 출처 구분
-- 노드 선택 후 **전체 / 1단계 / 2단계 / 3단계** 관계 렌즈 탐색
-- 실제 기록된 관계만 표시하며 자동으로 추측 연결을 생성하지 않음
-- **몰입 보기(Immersive)** 및 `Ctrl/⌘+K` 검색
-- **25개 노드 / 28개 관계**의 합성 데모 시나리오 3개 (실제 AI 기록 아님)
-
-## 새로운 기능 — 기록 경로 탐색(V0.4)
-
-- 두 노드 사이에서 **실제 존재하는 연결만** 따라 최단 경로 표시. `observed` 관계만 보기 지원
-- 선택 노드·경로의 주변 영역 강조, 경로가 없는 경우 명확한 알림
-- 대형 그래프의 최대 600노드 / 1,800관계 렌더링 예산과 생략 수 알림
-- Cytoscape 재사용 및 증분 갱신으로 선택/수집 시 그래프 재생성 감소
-- 자세한 내용: [V0.4 개발 문서](docs/recorded-paths.md)
-
-## V0.9 — 빠른 검색·실행 상세 분석·대용량 벤치마크
-
-- 로컬 검색 인덱스: 부분 문자열·인용구 및 조건식 `kind:model evidence:observed source:... trace:...`
-- 실행 ID가 존재하는 기록만 모아 관측·오류·응답·이벤트 시간 범위 분석
-- 합성 10,000노드·30,000연결 성능 벤치마크: `npm run bench:graph`
-- 기본 브라우저·타입·단위 테스트와 CI 벤치마크 추가
-- [V0.9 사용 및 벤치마크 가이드](docs/performance-search.md)
-
-## V0.8 — 명시적 trace ID와 그래프 탐색 비교
-
-- **FIELD MAP 미니맵**으로 현재 화면 위치 확인 및 클릭·방향키 이동
-- 별자리 그룹: 기존 **연결 기준** 외에 앱이 생성한 **실행 ID 기준** 그룹화
-- 시간 기록 화면에서 기준 시점을 선택해 실제 ID로 **노드·관계 변경량 비교**
-- 이전 JSON 스키마 호환 및 원문·API 키·비밀 추론 미수집 정책 유지
-- [V0.8 미니맵·시점 비교·trace ID 가이드](docs/trace-navigation.md)
-
-## V0.7 — 별자리 관계망과 시맨틱 줌
-
-- 실제 노드·엣지만 사용하는 **연결 묶음 탐색기**, 묶음 집중 보기와 전체 복귀
-- 확대 단계별 정보 밀도 조절: **은하 조망 / 관계 탐색 / 세부 분석**
-- 묶음은 실제 실행 ID가 아니라 현재 데이터의 **연결 요소**임을 명시 (가짜 관계 생성 없음)
-- 클러스터 도메인 테스트 및 Chromium 데스크톱·모바일 UI 회귀 테스트
-- [V0.7 사용·설계 설명](docs/constellations.md)
-
-## V0.6 — 스트리밍 메타데이터 및 시간 이벤트
-
-- OpenAI / Claude **SSE**, Ollama **NDJSON** 응답을 변형하지 않고 전달
-- 요청·첫 청크 수신·완료/실패 시점을 실제 시간으로 기록하고 토큰 사용량은 최종 메타데이터에서만 추출
-- 기록된 노드의 최신 48개를 **시간순 이벤트 타임라인**에서 확인하고 클릭하면 그래프에서 선택
-- 모의 스트림 예제: `npm run demo:stream`
-- 연동 설명: [스트리밍 및 타임라인 가이드](docs/streaming.md)
-
-## V0.5 — 실제 AI API 이벤트 연동
-
-- **OpenAI Responses / Claude Messages / 로컬 Ollama Chat** 비스트리밍 호출 관측
-- 원문·API 키·도구 인자 대신 모델 ID, HTTP 응답 시간, 토큰 수, 도구 요청 건수만 전송
-- 수집기는 `127.0.0.1`에만 바인딩, 수집 오류가 실제 API 응답을 방해하지 않음
-- API별 호출 수는 그래프 상단에서 확인하고 제공자별 탐색 가능
-- 사용법 및 제한: [제공자별 연동 가이드](docs/providers.md)
-
-## Features — v0.1
-
-- Interactive Cytoscape graph with node selection, neighborhood highlighting, zoom, pan and fit-to-screen
-- Node search with one-hop context, category filters, and a browsable node library
-- Inspector with descriptions, evidence provenance, timestamps, sources and backlinks
-- Event timeline / graph replay; filters both nodes and relationships by recorded timestamp
-- Add personal notes and manual connections without mislabeling them as observed events
-- JSON import/export with schema validation and browser-local persistence (`localStorage`)
-- Responsive dark interface and synthetic demo workspace
-
-## Run locally
-
-Requires Node.js 22.10+.
+Node.js **22.10 이상**이 필요합니다.
 
 ```bash
+git clone https://github.com/sunwoo162/ain.git
+cd ain
+git switch release/v1.0.0-rc1
 npm install
 npm run dev
 ```
 
-Open the address printed by Vite. To validate changes:
+콘솔에 표시되는 Vite 주소(`http://127.0.0.1:5173`)를 브라우저에서 엽니다. 첫 실행 안내에서 **그래프 탐험하기**를 누르면 합성 데모를 볼 수 있습니다. 이 기록은 **실제 사용자의 AI 실행 기록이 아닙니다.**
+
+UI 데이터는 브라우저의 `localStorage`에 저장됩니다. 불러오기/내보내기를 통해 JSON으로 백업할 수 있으며, 초기화하거나 수집기에 처음 연결할 때는 먼저 **Export**로 데이터를 보관하세요.
+
+## 실제 로컬 실행 연결
+
+수집기는 계정이나 클라우드 서버 없이 **127.0.0.1:4318**에서 동작합니다. 기본적으로 Bearer 인증 토큰이 필요합니다.
+
+**터미널 A — Windows PowerShell**
+
+```powershell
+$env:MINDTRACE_TOKEN = node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))"
+npm run collector
+```
+
+**터미널 B — UI**
+
+```powershell
+npm run dev
+```
+
+상단 **Live connect**에서 `http://127.0.0.1:4318`과 터미널 A에서 생성한 토큰을 입력합니다. 연결 전에 로컬 그래프를 내보내는 것을 권장합니다.
+
+**터미널 C — 합성 실행 이벤트 보내기**
+
+```powershell
+$env:MINDTRACE_TOKEN = "터미널 A에서 생성된 동일한 비밀 토큰"
+npm run demo:trace
+npm run demo:stream
+```
+
+`demo:trace`는 샘플 노드/엣지, `demo:stream`은 실제 제공자에 요청하지 않는 합성 스트림을 전송합니다. 실제 모델에 비용이 발생하지 않습니다. 첫 데이터 동기화 후에는 약 2초마다 새 기록을 확인합니다.
+
+**실제 AI와 연동하려면** 자신의 앱 코드에 어댑터를 연결해야 합니다.
+
+- [로컬 collector·Node SDK 사용법](docs/collector.md)
+- [OpenAI / Claude / Ollama API 연동](docs/providers.md)
+- [SSE·NDJSON 스트리밍 관측](docs/streaming.md)
+
+실제 OpenAI·Claude API 호출에는 별도 키와 사용 요금이 필요할 수 있고, 로컬 Ollama는 프로그램과 모델이 설치되어 있어야 합니다. 제공자 실제 API 연결 E2E는 아직 릴리스 확인 항목입니다.
+
+## 주요 기능
+
+| 영역 | 기능 |
+| --- | --- |
+| 증거 그래프 | 실제로 기록된 노드/관계, 근거 출처 수준 표시, 노드 상세 패널 |
+| 관계 탐색 | 1~3단계 렌즈, 실제 연결만 따라가는 경로 탐색, 몰입 보기 |
+| 별자리 탐색 | 연결 요소 기준 묶음 또는 애플리케이션이 명시한 `traceId` 기준 실행 묶음 |
+| 정보 밀도 | 줌 단계별 라벨/관계 강조, 현재 시야를 표시하는 미니맵 |
+| 시간 기록 | 이벤트 최신순 탐색, 재생, 기록된 두 시점 사이의 추가·삭제·변경 |
+| 검색 | 한글/영문 부분 검색과 `kind:`, `evidence:`, `source:`, `trace:` 조건 |
+| 실행 분석 | 명시적 trace ID의 이벤트·관계·오류 수와 기록 시각 범위 |
+| 로컬 데이터 | 합성 예제, JSON 내보내기/가져오기, 개인 메모·수동 연결 |
+| 개발자 SDK | HTTP 루프백 collector, Node.js SDK, 3개 AI 제공자 관측 어댑터 |
+
+기술 스택: **React 19 · TypeScript · Vite · Cytoscape · Node.js 22**.
+
+## 검증
 
 ```bash
 npm run test
+npm run smoke:release
 npm run typecheck
 npm run build
+npm run test:browser
+npm run bench:graph
 ```
 
-기본 그래프 UI는 별도 서버·API 키·계정 없이 실행됩니다. **Live connect 및 제공자 이벤트 관측은 선택 사항**이며, 직접 로컬 수집기와 AI 제공자에 연결해야 합니다. 데이터를 자동으로 외부 업로드하지 않지만 실제 AI API를 호출하면 요청은 해당 제공자에게 전달됩니다. 그래프/수집기 저장 데이터는 암호화되어 있지 않습니다.
+CI는 테스트·빌드·Chromium 브라우저 E2E(첫 실행, 노드 탐색, 모바일, **실제 로컬 collector 프로세스 연결**)를 실행합니다. 합성 CPU 벤치마크는 **1만 노드 / 3만 엣지**를 사용하지만, 이것만으로 운영 환경의 FPS나 메모리 성능을 보장하지 않습니다.
 
-## Evidence model
+- [RC1 검증 체크리스트 및 남은 출시 조건](docs/release-rc1.md)
+- [검색·대용량 CPU 벤치마크](docs/performance-search.md)
+- [관계 경로 및 렌더링 예산](docs/recorded-paths.md)
+- [명시적 trace ID와 시점 비교](docs/trace-navigation.md)
+- [별자리 묶음과 시맨틱 줌](docs/constellations.md)
+- [UI 디자인 시스템](docs/design-system.md)
 
-MindTrace's schema has four explicit provenance levels:
+## 관측과 추론의 구분
 
-| Level | Meaning | Display |
-| --- | --- | --- |
-| `observed` | Directly recorded event from an integration | solid relationship |
-| `reported` | Model/provider/external source reported information | dashed relationship |
-| `inferred` | Derived or suspected relationship; not directly verified | dashed relationship |
-| `manual` | Human-authored note or connection | dotted relationship |
+`observed`는 연동 코드가 이벤트/관계를 기록했다는 뜻이지 AI가 그 정보를 실제로 사고에 사용했다는 증명이 아닙니다. `reported`는 외부 제공자에 의해 보고된 사실, `inferred`는 추정, `manual`은 사용자가 작성한 메모/관계입니다.
 
-Each node has `{ id, kind, label, detail, createdAt, source, evidence }`. Each edge has `{ id, source, target, kind, createdAt, evidence }`. `source` and `target` reference valid node IDs. Node kinds are `prompt`, `model`, `document`, `memory`, `tool`, `reasoning-summary`, `answer`, `note`, `error`. Events may be ingested in a future SDK, but v0.1 only imports validated workspace JSON.
+`traceId`는 사용자가 연결한 애플리케이션의 **명시적 불투명 실행 식별자**이며, 제공자 응답 ID나 계정 ID를 자동으로 읽지 않습니다. 단순히 연결되어 있다는 이유로 같은 실행에 속한다고 추측하지 않습니다.
 
-Example `workspace.json`:
+**보안:** 기본 수집기는 루프백에만 바인딩하고 인증 토큰/CORS Origin을 검증합니다. 프롬프트·답변 원문·API 키·숨겨진 추론을 자동으로 수집하지 않습니다. 그러나 직접 작성한 `label`, `detail`, `source`에 민감한 내용을 넣으면 저장될 수 있으므로 개발자가 직접 비식별화해야 합니다. 브라우저 `localStorage`와 수집기 JSON 파일은 **암호화 저장이 아닙니다**. 인터넷에 수집기를 공개하지 마세요.
 
-```json
-{
-  "schemaVersion": 1,
-  "id": "example",
-  "name": "Example",
-  "description": "An example local evidence graph",
-  "isDemo": false,
-  "nodes": [
-    { "id": "q1", "kind": "prompt", "label": "Why slow?", "detail": "User request", "createdAt": "2026-01-01T00:00:00.000Z", "source": "my-app", "evidence": "observed" },
-    { "id": "a1", "kind": "answer", "label": "Measure query latency", "detail": "Final response", "createdAt": "2026-01-01T00:00:01.000Z", "source": "my-app", "evidence": "observed" }
-  ],
-  "edges": [
-    { "id": "e1", "source": "q1", "target": "a1", "kind": "produced", "createdAt": "2026-01-01T00:00:01.000Z", "evidence": "observed" }
-  ]
-}
-```
+## 배포 상태 및 기여
 
-JSON import is limited to 2 MB. The UI caps workspaces to 10,000 nodes / 30,000 edges; practical rendering performance depends on device capacity. JSON should be from trusted sources: imported labels and descriptions are rendered as text, not HTML.
+현재 기능은 `release/v1.0.0-rc1` 브랜치의 **Draft PR #14**에 통합되어 있으며, `main`에 정식 배포하지 않았습니다. 이전 #1~#13의 스택형 PR들은 기능별 개발 이력을 보존합니다. 테스트 통과만으로 정식 출시 완료를 선언하지 않습니다.
 
-## Roadmap
+버그 제보, 기능 제안, 코드 리뷰는 [GitHub Issues](https://github.com/sunwoo162/ain/issues)로 남길 수 있습니다. 기여 시 Node 테스트·타입 검사·빌드 및 영향을 받는 브라우저 테스트를 실행하세요.
 
-- [x] **v0.1** Local interactive evidence graph, import/export, annotations, replay
-- [x] **v0.2 (기초)** 루프백 수집기·토큰 인증·SDK·2초 폴링 연동 (추가 어댑터는 아직 미구현)
-- [x] **V0.5 (기초)** OpenAI / Anthropic / Ollama 비스트리밍 메타데이터 어댑터와 수집기 연동
-- [ ] **후속** ChatGPT/Claude 사용자가 제공한 대화 내보내기 파일 가져오기 (동의·비식별화 포함)
-- [ ] **후속** 대규모 검색 최적화, 그래프 클러스터링 및 그래프 버전 간 비교
-- [ ] **v1.0** Plugin API, stable versioned schema, public documentation and benchmarking
-
-## Repository conventions
-
-- Branches: `feat/<topic>`, `fix/<topic>`, `docs/<topic>`, `refactor/<topic>`, `test/<topic>`
-- Commits and PR titles: `<type>: <concise description>` (Conventional Commits)
-- Allowed types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci`
-- Feature work targets `main` through PRs; don't commit directly to `main` except repository initialization
-- Every PR includes **Summary**, **Changes**, **Verification**, **Evidence / limits**, and **Checklist**.
-- A PR is merged only after test, typecheck, build and human review.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
-
-## 로컬 AI 실행 이벤트 실시간 연결 (v0.2)
-
-자체 AI 애플리케이션의 **명시적으로 기록된 이벤트**를 로컬 수집기에 전달하고 웹 그래프에서 볼 수 있습니다.
-
-1. PowerShell에서 `$env:MINDTRACE_TOKEN = node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))"`로 토큰 설정
-2. 같은 터미널에서 `npm run collector` 실행 (기본 주소 `http://127.0.0.1:4318`)
-3. 다른 터미널에서 `npm run dev` 실행 후 웹의 **Live connect**에서 주소·토큰 입력
-4. 토큰을 설정한 별도 터미널에서 `npm run demo:trace` 실행 → 그래프에 예시 실행 기록 표시
-
-자세한 API, 보안 설정, SDK 사용법은 [로컬 수집기 안내](docs/collector.md)를 참고하세요. 토큰은 브라우저 저장소에 남기지 않습니다. 그래프 데이터는 로컬 저장소에 남으므로 공용 기기에서는 주의하세요.
+**License:** MIT — [LICENSE](LICENSE).
