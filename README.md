@@ -24,6 +24,14 @@ Explore observable AI activity as an evidence graph. A local-first, Obsidian-ins
 - Cytoscape 재사용 및 증분 갱신으로 선택/수집 시 그래프 재생성 감소
 - 자세한 내용: [V0.4 개발 문서](docs/recorded-paths.md)
 
+## V0.5 — 실제 AI API 이벤트 연동
+
+- **OpenAI Responses / Claude Messages / 로컬 Ollama Chat** 비스트리밍 호출 관측
+- 원문·API 키·도구 인자 대신 모델 ID, HTTP 응답 시간, 토큰 수, 도구 요청 건수만 전송
+- 수집기는 `127.0.0.1`에만 바인딩, 수집 오류가 실제 API 응답을 방해하지 않음
+- API별 호출 수는 그래프 상단에서 확인하고 제공자별 탐색 가능
+- 사용법 및 제한: [제공자별 연동 가이드](docs/providers.md)
+
 ## Features — v0.1
 
 - Interactive Cytoscape graph with node selection, neighborhood highlighting, zoom, pan and fit-to-screen
@@ -51,7 +59,7 @@ npm run typecheck
 npm run build
 ```
 
-There is no backend, no API key, no account requirement and no automatic uploads. Data stays in your own browser's local storage unless you explicitly export a workspace file. Note that browser storage is *not* encrypted; avoid importing sensitive content on shared devices.
+기본 그래프 UI는 별도 서버·API 키·계정 없이 실행됩니다. **Live connect 및 제공자 이벤트 관측은 선택 사항**이며, 직접 로컬 수집기와 AI 제공자에 연결해야 합니다. 데이터를 자동으로 외부 업로드하지 않지만 실제 AI API를 호출하면 요청은 해당 제공자에게 전달됩니다. 그래프/수집기 저장 데이터는 암호화되어 있지 않습니다.
 
 ## Evidence model
 
@@ -91,9 +99,9 @@ JSON import is limited to 2 MB. The UI caps workspaces to 10,000 nodes / 30,000 
 
 - [x] **v0.1** Local interactive evidence graph, import/export, annotations, replay
 - [x] **v0.2 (기초)** 루프백 수집기·토큰 인증·SDK·2초 폴링 연동 (추가 어댑터는 아직 미구현)
-- [ ] **v0.3** OpenAI / Anthropic / Ollama adapter prototypes (available API events only)
-- [ ] **v0.4** User-provided ChatGPT/Claude conversation export importers, with consent and redaction
-- [ ] **v0.5** Search at scale, layouts, filters, replay history, graph diff
+- [x] **V0.5 (기초)** OpenAI / Anthropic / Ollama 비스트리밍 메타데이터 어댑터와 수집기 연동
+- [ ] **후속** ChatGPT/Claude 사용자가 제공한 대화 내보내기 파일 가져오기 (동의·비식별화 포함)
+- [ ] **후속** 대규모 검색 최적화, 그래프 클러스터링 및 그래프 버전 간 비교
 - [ ] **v1.0** Plugin API, stable versioned schema, public documentation and benchmarking
 
 ## Repository conventions

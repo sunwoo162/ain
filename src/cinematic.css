@@ -486,3 +486,100 @@ body { background: var(--obs-bg); }
 @media(prefers-reduced-motion:reduce) {
   .route-steps button { transition:none; }
 }
+
+
+/* V0.5 / Provider telemetry: a clear distinction between recorded and absent data. */
+.provider-telemetry {
+  position: relative;
+  margin: -8px 0 17px;
+  display: flex;
+  align-items: center;
+  gap: 23px;
+  padding: 16px 20px;
+  border: 1px solid #324467;
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 4% 40%, #7975f81c, transparent 37%),
+    linear-gradient(107deg, #121f37 0%, #111a2b 60%, #101928 100%);
+  box-shadow: inset 0 1px 0 #e5e8ff10, 0 12px 35px #03070e60;
+}
+.provider-heading { display:grid; gap:5px; flex:0 0 180px; min-width:0; }
+.provider-heading .eyebrow { font-size:8px; color:#9fa5fa; letter-spacing:1.4px; }
+.provider-heading>strong { font-size:13px; color:#ebefff; }
+.provider-heading>small { font-size:10px; color:#7f90b2; }
+.provider-entries { display:flex; flex:1; flex-wrap:wrap; gap:9px; align-items:stretch; }
+.provider-entry {
+  flex:1 1 145px; min-width:115px;
+  display:flex; align-items:center; gap:10px; text-align:left;
+  background:#111b30; border:1px solid #2c3d5c;
+  border-radius:10px; padding:10px 11px;
+  color:#becbe3; transition:border-color .18s,background .18s;
+}
+.provider-entry:hover { border-color:#6e80bb; background:#1e2a43; }
+.provider-entry.recorded {
+  background:linear-gradient(115deg,#203a4a,#172b40);
+  border-color:#397e8e8f;
+}
+.provider-entry.is-active { border-color:#aeb1ff; box-shadow:0 0 0 1px #9b92e68a; }
+.provider-orb {
+  display:block; flex:none; width:8px; height:8px; border-radius:50%;
+  background:#4b5e7c; box-shadow:0 0 0 4px #4b5e7c1f;
+}
+.provider-entry.recorded .provider-orb {
+  background:#72dfc7; box-shadow:0 0 12px #67e0c48a, 0 0 0 4px #4eae9c19;
+}
+.provider-identity { display:grid; gap:5px; flex:1; min-width:0; }
+.provider-identity strong { font-family:Manrope,'DM Sans',sans-serif; font-size:12px; font-weight:750; color:#e7ecfb; }
+.provider-identity small { font-size:7px; letter-spacing:1px; color:#697d9e; white-space:nowrap; }
+.provider-entry.recorded .provider-identity small { color:#82cbbb; }
+.provider-count {
+  font-variant-numeric:tabular-nums;
+  color:#acbbd3; font-size:13px; font-weight:800;
+  font-family:Manrope,'DM Sans',sans-serif;
+}
+.provider-entry.recorded .provider-count { color:#b4fff0; }
+.provider-guide {
+  display:inline-flex; gap:7px; align-items:center;
+  padding:11px 13px; font-size:11px; font-weight:650;
+  color:#adbbd4; background:transparent;
+  border:1px solid #364769; border-radius:10px; white-space:nowrap;
+}
+.provider-guide:hover { color:#e6faff; background:#1c2b45; }
+.provider-help-modal { max-height:min(90vh,740px); overflow:auto; width:min(100%,580px); }
+.provider-help-steps { display:grid; gap:10px; margin-top:8px; }
+.provider-help-steps>div {
+  display:flex; gap:14px; align-items:flex-start;
+  border:1px solid #334364; background:#101d33;
+  padding:12px; border-radius:10px;
+}
+.provider-help-steps>div>span {
+  font:800 14px Manrope,sans-serif; color:#8e91ef;
+}
+.provider-help-steps p { display:grid; gap:6px; min-width:0; }
+.provider-help-steps strong { font-size:12px; color:#e4eeff; }
+.provider-help-steps code {
+  display:block; white-space:pre-wrap; overflow-wrap:anywhere;
+  background:#070d1a; border:1px solid #303f5e;
+  border-radius:6px; font-size:10px; color:#a2eadb; padding:9px;
+}
+.provider-help-steps small { font-size:10px; color:#899fbe; line-height:1.5; }
+.provider-doc-link {
+  display:flex; align-items:center; justify-content:space-between;
+  border:1px solid #4d5c99; background:#20294c99;
+  color:#c3c2ff; border-radius:9px; padding:12px;
+  font-size:12px; font-weight:700;
+}
+.provider-doc-link:hover { background:#353765; color:white; }
+@media(max-width:1400px) {
+  .provider-telemetry { flex-wrap:wrap; gap:13px; }
+  .provider-heading { flex:1 1 100%; }
+}
+@media(max-width:760px) {
+  .provider-telemetry { padding:13px; }
+  .provider-entries { gap:7px; }
+  .provider-entry { min-width:105px; flex-basis:calc(50% - 7px); }
+  .provider-guide { flex:1 1 105px; justify-content:center; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .provider-entry { transition:none; }
+}

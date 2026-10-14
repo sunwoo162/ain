@@ -223,6 +223,7 @@ export default function App() {
   const [liveToken, setLiveToken] = useState('');
   const [liveSession, setLiveSession] = useState<{ url: string; token: string } | null>(null);
   const [liveState, setLiveState] = useState('연결 안 됨');
+  const [providerHelpOpen, setProviderHelpOpen] = useState(false);
   const cyRef = useRef<Core | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -248,6 +249,20 @@ export default function App() {
   const selectedNode = useMemo(() => workspace.nodes.find(n => n.id === selected) ?? null, [workspace, selected]);
   const neighbors = useMemo(() => selected ? getNeighbors(workspace, selected) : [], [workspace, selected]);
   const counts = useMemo(() => Object.fromEntries(NODE_KINDS.map(k => [k, workspace.nodes.filter(n => n.kind === k).length])) as Record<NodeKind, number>, [workspace]);
+  const providerCounts = useMemo(() => {
+    const result = { OpenAI: 0, Anthropic: 0, Ollama: 0 };
+    for (const node of workspace.nodes) {
+      if (node.kind !== 'model') continue;
+      if (node.label.startsWith('OpenAI · ')) result.OpenAI++;
+      else if (node.label.startsWith('Anthropic · ')) result.Anthropic++;
+      else if (node.label.startsWith('Ollama · ')) result.Ollama++;
+    }
+    return result;
+  }, [workspace]);
+  const focusProvider = (name: 'OpenAI' | 'Anthropic' | 'Ollama') => {
+    setQuery(name); setSelected(null); setPathStart(null); setLensDepth(0); setFrame(null); setMode('graph');
+    searchRef.current?.blur();
+  };
 
   useEffect(() => {
     try { saveWorkspace(workspace); }
@@ -388,6 +403,23 @@ export default function App() {
       <header className="topbar"><div className="crumbs"><span>Workspace</span><ChevronRight size={15}/><strong>{mode === 'graph' ? 'Graph explorer' : mode === 'timeline' ? 'Timeline' : 'Node library'}</strong></div><div className="header-actions"><span className="autosave"><span className="status-dot" /> Saved locally</span><span className="header-divider"/><button type="button" className="btn btn-ghost" onClick={() => liveSession ? disconnectLive() : setLiveOpen(true)} title={liveSession ? 'Disconnect local collector' : 'Connect local AI collector'}><Radio size={15}/>{liveSession ? 'Disconnect' : 'Live connect'}</button><button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} title="Import a MindTrace JSON workspace"><Upload size={16}/> Import</button><button type="button" className="btn btn-ghost" onClick={exportGraph}><ArrowDownToLine size={16}/> Export</button><button type="button" className="btn btn-primary" onClick={() => setEditorOpen(true)}><Plus size={16}/> New note</button></div></header>
       <main className="content">
         <div className="page-heading"><div className="hero-copy"><div className="eyebrow"><Sparkles size={13}/> 의심암귀 · THE OBSERVATORY <span className="eyebrow-divider"/> <span>疑心暗鬼 / LOCAL-FIRST</span></div><h1>{mode === 'graph' ? <>모든 답변에는 <em>흔적이 있다.</em></> : mode === 'timeline' ? <>흔적을 따라 <em>시간 속으로.</em></> : <>노드 하나까지 <em>의심하라.</em></>}</h1><p>{mode === 'graph' ? 'AI가 남긴 관측 가능한 실행과 근거를 하나의 지식 우주에서 탐험하세요.' : mode === 'timeline' ? '기록된 실행을 되짚어 보세요. 관측된 이벤트를 숨겨진 내부 사고와 혼동하지 않습니다.' : '기록과 근거, 메모리와 모델 호출, 연결 관계까지 한곳에서 확인하세요.'}</p></div><div className="heading-meta"><div><span className="metric-label">01 / SIGNALS</span><strong>{workspace.nodes.length.toLocaleString()}</strong><small>기록된 노드</small></div><div><span className="metric-label">02 / PATHWAYS</span><strong>{workspace.edges.length.toLocaleString()}</strong><small>연결된 관계</small></div><div className="metric-status"><span className="metric-label">03 / ORIGIN</span><strong><span className="metric-live-dot"/> {liveSession ? 'LIVE' : 'LOCAL'}</strong><small>{liveSession ? 'Collector linked' : 'Private workspace'}</small></div></div></div>
+        <div className="provider-telemetry" aria-label="AI 제공자 실행 기록">
+          <div className="provider-heading"><span className="eyebrow">CONNECTED INTELLIGENCE</span><strong>실제 AI 실행 신호</strong><small>명시적으로 관측한 호출만 표시해요.</small></div>
+          <div className="provider-entries">
+            {(['OpenAI', 'Anthropic', 'Ollama'] as const).map(provider => <button
+              key={provider} type="button"
+              className={`provider-entry ${providerCounts[provider] ? 'recorded' : ''} ${query === provider ? 'is-active' : ''}`}
+              title={`${provider} 기록 ${providerCounts[provider]}건 ${providerCounts[provider] ? '· 클릭하여 검색' : ''}`}
+              onClick={() => focusProvider(provider)} aria-label={`${provider} 실행 기록 ${providerCounts[provider]}건 탐색`}>
+              <span className="provider-orb" aria-hidden="true"/>
+              <span className="provider-identity"><strong>{provider === 'Anthropic' ? 'Claude' : provider}</strong><small>{providerCounts[provider] > 0 ? 'RECORDED' : 'NO TRACES YET'}</small></span>
+              <span className="provider-count">{providerCounts[provider]}</span>
+            </button>)}
+            <button type="button" className="provider-guide" onClick={() => setProviderHelpOpen(true)}>
+              <CircleHelp size={15}/> 연동 방법
+            </button>
+          </div>
+        </div>
         <div className="canvas-toolbar"><label className="search-field"><Search size={17}/><input ref={searchRef} aria-label="노드 검색" placeholder="흔적, 근거, 문서 검색..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><X size={14}/></button>}<kbd>Ctrl / ⌘ K</kbd></label><div className="toolbar-right"><span className="result-count">{viewport.graph.nodes.length} / {filtered.nodes.length} 노드</span>
         {mode !== 'library' && <div className="scope-switch" role="group" aria-label="관계 탐색 범위">
           <span className="scope-prefix"><Focus size={13}/> 관계 렌즈</span>
@@ -448,6 +480,21 @@ export default function App() {
     </aside>
 
     <input hidden ref={fileRef} type="file" accept="application/json,.json" onChange={importFile} />
+    {providerHelpOpen && <div className="modal-backdrop" role="presentation"
+      onMouseDown={event => { if (event.target === event.currentTarget) setProviderHelpOpen(false); }}>
+      <div className="modal provider-help-modal" role="dialog" aria-modal="true" aria-label="AI 제공자 연결 방법">
+        <div className="modal-top"><div><span className="eyebrow">LOCAL PROVIDER OBSERVERS</span><h2>AI 실행 기록 연결</h2></div>
+          <button type="button" className="icon-button" aria-label="닫기" onClick={() => setProviderHelpOpen(false)}><X size={18}/></button></div>
+        <p className="muted small">API 키나 질문 원문은 수집기에 저장하지 않아요. 자신의 앱에 관측 어댑터를 연결해야 실제 기록이 나타납니다.</p>
+        <div className="provider-help-steps">
+          <div><span>01</span><p><strong>로컬 수집기 시작</strong><code>npm run collector</code><small>먼저 환경 변수 MINDTRACE_TOKEN을 설정해 주세요.</small></p></div>
+          <div><span>02</span><p><strong>웹 앱 연결</strong><code>npm run dev</code><small>Live connect에서 동일한 토큰을 입력합니다.</small></p></div>
+          <div><span>03</span><p><strong>실제 AI 요청 관측</strong><code>node examples/observe-providers.mjs ollama</code><small>OpenAI / Claude를 쓰려면 해당 API 키가 필요하고 비용이 발생할 수 있어요.</small></p></div>
+        </div>
+        <a className="provider-doc-link" href="https://github.com/sunwoo162/ain/blob/feat/ai-provider-observers/docs/providers.md"
+          target="_blank" rel="noreferrer">전체 연동 문서 보기 <ArrowRight size={15}/></a>
+        <div className="modal-actions"><button type="button" className="btn btn-primary" onClick={() => setProviderHelpOpen(false)}>확인</button></div>
+      </div></div>}
     {liveOpen && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setLiveOpen(false); }}><form className="modal" onSubmit={connectLive} aria-label="로컬 AI 수집기 연결"><div className="modal-top"><div><span className="eyebrow">LOCAL EVENT COLLECTOR</span><h2>실시간 기록 연결</h2></div><button type="button" className="icon-button" aria-label="닫기" onClick={() => setLiveOpen(false)}><X size={18}/></button></div><p className="muted small">로컬 수집기의 관측된 이벤트만 불러옵니다. 모델의 숨겨진 추론은 수집하지 않습니다.</p><label htmlFor="collector-url">수집기 주소</label><input id="collector-url" type="url" value={liveUrl} onChange={e => setLiveUrl(e.target.value)} required/><label htmlFor="collector-token">수집기 토큰</label><input id="collector-token" type="password" autoComplete="off" value={liveToken} onChange={e => setLiveToken(e.target.value)} required placeholder="MINDTRACE_TOKEN"/><div className="modal-actions"><button type="button" className="btn btn-ghost" onClick={() => setLiveOpen(false)}>취소</button><button type="submit" className="btn btn-primary"><Radio size={15}/> 연결</button></div></form></div>}
     {editorOpen && <div className="modal-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setEditorOpen(false); }}><form className="modal" onSubmit={addNewNote} aria-label="Create a note"><div className="modal-top"><div><span className="eyebrow">PERSONAL ANNOTATION</span><h2>New note</h2></div><button type="button" className="icon-button" onClick={() => setEditorOpen(false)} aria-label="Close"><X size={18}/></button></div><label htmlFor="note-title">Title</label><input id="note-title" required maxLength={140} autoFocus placeholder="What did you discover?" value={noteTitle} onChange={e => setNoteTitle(e.target.value)} /><label htmlFor="note-detail">Details</label><textarea id="note-detail" rows={5} maxLength={10000} placeholder="Add context, observations or links..." value={noteDetail} onChange={e => setNoteDetail(e.target.value)} /><div className="modal-actions"><button type="button" className="btn btn-ghost" onClick={() => setEditorOpen(false)}>Cancel</button><button type="submit" className="btn btn-primary"><Check size={15}/> Create note</button></div></form></div>}
     {toast && <div className="toast" role="status"><MessageCircle size={16}/><span>{toast}</span><button type="button" aria-label="Dismiss notification" onClick={() => setToast('')}><X size={14}/></button></div>}

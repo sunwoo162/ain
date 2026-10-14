@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test tests/*.test.ts tests/*.test.mjs",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "demo:providers": "node examples/observe-providers.mjs"
   },
   "dependencies": {
     "cytoscape": "^3.30.4",
@@ -27,5 +28,7 @@
     "typescript": "~5.7.2",
     "vite": "^6.0.0"
   },
-  "engines": {"node": ">=22.10.0"}
+  "engines": {
+    "node": ">=22.10.0"
+  }
 }
