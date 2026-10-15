@@ -85,6 +85,16 @@ CI에서 Chromium 자동 브라우저 테스트는 첫 사용 안내, 전체 UI,
 
 별도 수집기를 자동으로 생성해 비밀값 저장 여부까지 검증하려면 `npm run smoke:ollama`를 실행하세요. PC의 실제 UI까지 검증하려면 PowerShell에서 `$env:RUN_REAL_OLLAMA_E2E='1'; npx playwright test tests/browser/ollama-live.spec.ts`를 실행합니다. 두 테스트 모두 로컬 Ollama만 호출하고 일회용 임시 collector 데이터를 삭제합니다.
 
+## 실제 다중 턴 Ollama 채팅 검증
+
+2026-10-15 Windows PC에서 설치된 `qwen2.5:1.5b`, `qwen3:4b` 모델로 **실제 비스트리밍 다중 턴 호출**을 수행했습니다. 각 호출은 실제 `/api/chat` HTTP 응답을 받았고, 노드 3개(요청/모델/응답), 관계 2개를 자동 기록했습니다. 2번째 턴부터는 직전 모델 답변을 `messages`로 전달하고, 실제 대화 연속 관계를 각 턴 사이에 기록했습니다.
+
+- 실제 3턴 대화 4회 + 터미널 직접 질문 2회 = **총 14회 실제 채팅 API 호출**, 누적 42개 노드, 37개 관계
+- 모든 호출 기록은 실제 모델 응답을 수신한 이후 저장됐고, 프롬프트/답변 텍스트는 collector JSON에 저장하지 않음
+- 모델 품질 한계 발견: '의심암귀'를 의료 앱으로 잘못 이해하거나 JavaScript `const` 규칙을 틀리게 설명함. **수집 성공은 답변의 정확성 보장이 아님**
+- 지속 실행·직접 질문 도구: `npm run chat:real`, `npm run chat:interactive`
+- 별도 Chrome 프로필 + 로컬 인증 collector, 실제 호출 데이터 파일 `.mindtrace/real-chat-traces.json`
+
 ## 정식 V1.0 전 릴리스 차단 조건
 
 - [x] 통합 PR을 `main` 대상으로 변경한 커밋의 테스트·빌드·브라우저 E2E 통과: [GitHub Actions](https://github.com/sunwoo162/ain/actions/runs/38652293160)
