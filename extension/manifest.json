@@ -4,7 +4,7 @@
   "description": "사용자가 허용한 ChatGPT 웹 답변과 화면에 보이는 출처를 로컬 의심암귀에 기록합니다.",
   "version": "0.1.0",
   "permissions": ["storage"],
-  "host_permissions": ["http://127.0.0.1:4318/*", "http://localhost:4318/*"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
   "background": { "service_worker": "background.js", "type": "module" },
   "content_scripts": [{
     "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],

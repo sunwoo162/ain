@@ -16,7 +16,7 @@ const isLoopback = value => {
 const validTraceId = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{8,80}$/.test(value);
 
 export function createEeeePlugin({
-  baseUrl = 'http://127.0.0.1:4318',
+  baseUrl = 'http://127.0.0.1:4319',
   token,
   fetcher = fetch,
 } = {}) {

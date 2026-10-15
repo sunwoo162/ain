@@ -18,9 +18,11 @@
 <body>
 <h1>의심암귀 · 관측 연결</h1>
 <p>허용 후 생성되는 ChatGPT 웹 답변과 표시된 출처만 로컬로 전송해요. 기존 채팅은 자동 수집하지 않아요.</p>
+<label for="port">로컬 수집기 포트</label>
+<input id="port" type="number" min="1024" max="65535" value="4319" inputmode="numeric">
 <label for="token">로컬 수집기 Bearer 토큰</label>
 <input id="token" type="password" autocomplete="off" placeholder="12자 이상 · 브라우저 종료 시 만료">
-<small>수집기 주소: http://127.0.0.1:4318</small>
+<small>수집기 주소: http://127.0.0.1:<span id="portLabel">4319</span></small>
 <button id="enable">관측 시작</button>
 <button class="secondary" id="disable">관측 끄기 · 토큰 지우기</button>
 <div id="status" aria-live="polite"></div>

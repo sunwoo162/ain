@@ -82,6 +82,7 @@ npm run chat:real
 - `extension/`: Chrome Manifest V3, 기본 수집 OFF, 인증 토큰은 확장 세션에만 저장합니다.
 - `sdk/eeee-plugin.mjs`: EEEE에서 호출 가능한 Node.js 조회 어댑터입니다. 현재는 실제 실행 기록과 화면 출처 **조회만 지원**하며 답변 자동 검증은 미구현입니다.
 - ChatGPT의 내부 검색 전체/숨겨진 추론을 읽는 기능은 없습니다. 인용 링크가 있다는 사실이 답변의 정확성을 증명하지 않습니다.
+- 기존 collector 기본 포트는 4318이지만, ChatGPT 웹 확장의 기본 포트는 다른 프로그램과의 충돌을 피하도록 **4319로 설정**했습니다. 연결 시 포트를 동일하게 맞추세요.
 - 설치와 보안 제한 사항: [ChatGPT 웹 연동 및 EEEE 어댑터](docs/chatgpt-extension.md)
 
 ## 주요 기능

@@ -1,5 +1,6 @@
 import { test, expect, chromium } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
+import { createServer as createNetServer } from 'node:net';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -14,7 +15,12 @@ test('extension: opt-in DOM evidence reaches authenticated loopback collector', 
   const collectorFile = join(dir, 'events.json');
   const extensionPath = resolve('extension');
   const token = randomBytes(24).toString('hex');
-  const port = 4318; // Manifest V3 host permission intentionally limits the collector to this port.
+  const availablePort = createNetServer();
+  await new Promise<void>(resolve => availablePort.listen(0, '127.0.0.1', resolve));
+  const address = availablePort.address();
+  if (!address || typeof address === 'string') throw new Error('Unable to allocate test collector port.');
+  const port = address.port;
+  await new Promise<void>(resolve => availablePort.close(() => resolve()));
   let context;
   let collector;
   try {
@@ -67,10 +73,10 @@ test('extension: opt-in DOM evidence reaches authenticated loopback collector', 
       old.innerHTML = '<div class="markdown">OLD_PRIVATE_CHAT_NOT_TO_BACKFILL</div>';
       document.querySelector('#chat')?.appendChild(old);
     });
-    await worker.evaluate(async tokenValue => {
-      await chrome.storage.session.set({ token: tokenValue });
-      await chrome.storage.local.set({ enabled: true });
-    }, token);
+    await worker.evaluate(async tokenPort => {
+      await chrome.storage.session.set({ token: tokenPort.token });
+      await chrome.storage.local.set({ enabled: true, collectorPort: tokenPort.port });
+    }, { token, port });
 
     await page.waitForTimeout(500);
     await page.evaluate(() => {
