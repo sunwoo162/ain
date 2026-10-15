@@ -16,7 +16,8 @@
     "test:browser": "playwright test",
     "bench:graph": "node --disable-warning=ExperimentalWarning --experimental-strip-types scripts/bench-graph.mjs --json",
     "smoke:release": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test tests/release-smoke.test.mjs",
-    "smoke:ollama": "node --disable-warning=ExperimentalWarning --experimental-strip-types scripts/smoke-ollama.mjs"
+    "smoke:ollama": "node --disable-warning=ExperimentalWarning --experimental-strip-types scripts/smoke-ollama.mjs",
+    "bench:browser": "node scripts/bench-browser.mjs"
   },
   "dependencies": {
     "cytoscape": "^3.30.4",

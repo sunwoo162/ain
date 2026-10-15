@@ -24,7 +24,7 @@ import { QuickStart } from './components/QuickStart';
 import { findConnectedClusters, filterToCluster, semanticZoomLevel, type ZoomLevel } from './domain/clusters';
 import { getNeighborhoodGraph, type LensDepth } from './domain/explore';
 import { findRecordedPath, planGraphViewport, type RecordedPath } from './domain/paths';
-import { downloadWorkspace, loadWorkspace, MAX_IMPORT_BYTES, parseImport, saveWorkspace } from './lib/storage';
+import { downloadWorkspace, loadWorkspace, loadStoredWorkspace, MAX_IMPORT_BYTES, parseImport, saveWorkspace } from './lib/storage';
 
 const KIND_META: Record<NodeKind, { label: string; color: string }> = {
   prompt: { label: '질문', color: '#a2a9ff' },
@@ -243,6 +243,7 @@ function GraphCanvas({
 
 export default function App() {
   const [workspace, setWorkspace] = useState<Workspace>(loadWorkspace);
+  const [storageHydrated, setStorageHydrated] = useState(false);
   const [query, setQuery] = useState('');
   const [kinds, setKinds] = useState<NodeKind[]>([...NODE_KINDS]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -360,10 +361,23 @@ export default function App() {
     searchRef.current?.blur();
   };
 
+  // Load legacy localStorage or IndexedDB before allowing the first write.
+  // Without this guard, the built-in demo could overwrite a large saved graph.
   useEffect(() => {
-    try { saveWorkspace(workspace); }
-    catch { setToast('Could not save: browser storage is full or disabled. Export your graph to keep a copy.'); }
-  }, [workspace]);
+    let alive = true;
+    void loadStoredWorkspace().then(saved => {
+      if (!alive) return;
+      setWorkspace(saved);
+      setStorageHydrated(true);
+    }).catch(() => { if (alive) setStorageHydrated(true); });
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    if (!storageHydrated) return;
+    void saveWorkspace(workspace).catch(() => {
+      setToast('Could not save: browser storage is full or disabled. Export your graph to keep a copy.');
+    });
+  }, [workspace, storageHydrated]);
   useEffect(() => { if (selected && !workspace.nodes.some(n => n.id === selected)) setSelected(null); }, [selected, workspace]);
   useEffect(() => {
     if (pathStart && !workspace.nodes.some(node => node.id === pathStart)) setPathStart(null);
@@ -445,7 +459,7 @@ export default function App() {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      if (file.size > MAX_IMPORT_BYTES) throw new Error('Import must be under 2 MB.');
+      if (file.size > MAX_IMPORT_BYTES) throw new Error('Import must be under 16 MB.');
       const next = parseImport(await file.text());
       setLiveSession(null); setLiveState('연결 안 됨'); setWorkspace(next); setSelected(null); setPathStart(null); setClusterId(null); setDiffBaseline(0); setLensDepth(0); setFrame(null); setQuery(''); setKinds([...NODE_KINDS]);
       flash(`Imported ${next.nodes.length} nodes.`);
