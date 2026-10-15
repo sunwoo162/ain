@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>의심암귀 관측</title>
+<style>
+  body { width: 318px; margin: 0; padding: 18px; font: 13px system-ui,sans-serif; background:#101724; color:#edf2ff; }
+  h1 { font-size:18px; margin:0 0 6px; } p { line-height:1.55; color:#b7c5d8; }
+  label { display:block; margin:14px 0 6px; font-weight:600; }
+  input { box-sizing:border-box; width:100%; padding:11px; color:#edf2ff; background:#1c283b; border:1px solid #465470; border-radius:8px; }
+  button { margin-top:12px; padding:11px; width:100%; border:0; border-radius:9px; font-weight:700; cursor:pointer; background:#7fd0be; color:#0e1d21; }
+  button.secondary { background:#27364a; color:#f1f5ff; }
+  #status { margin-top:11px; font-size:12px; min-height:34px; line-height:1.5; }
+  small { color:#a6b5ca; }
+</style>
+</head>
+<body>
+<h1>의심암귀 · 관측 연결</h1>
+<p>허용 후 생성되는 ChatGPT 웹 답변과 표시된 출처만 로컬로 전송해요. 기존 채팅은 자동 수집하지 않아요.</p>
+<label for="token">로컬 수집기 Bearer 토큰</label>
+<input id="token" type="password" autocomplete="off" placeholder="12자 이상 · 브라우저 종료 시 만료">
+<small>수집기 주소: http://127.0.0.1:4318</small>
+<button id="enable">관측 시작</button>
+<button class="secondary" id="disable">관측 끄기 · 토큰 지우기</button>
+<div id="status" aria-live="polite"></div>
+<script src="popup.js"></script>
+</body>
+</html>
