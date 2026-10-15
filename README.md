@@ -88,6 +88,8 @@ npm run test:browser
 npm run bench:graph
 ```
 
+설치된 로컬 Ollama로 비스트리밍·스트리밍 요청을 검증하려면 `npm run smoke:ollama`를 실행하세요. 실제 모델이 필요하므로 자동 CI에서는 실행하지 않습니다. 앱 UI까지 포함한 검증은 PowerShell에서 `$env:RUN_REAL_OLLAMA_E2E='1'; npx playwright test tests/browser/ollama-live.spec.ts`를 실행하면 됩니다.
+
 CI는 테스트·빌드·Chromium 브라우저 E2E(첫 실행, 노드 탐색, 모바일, **실제 로컬 collector 프로세스 연결**)를 실행합니다. 합성 CPU 벤치마크는 **1만 노드 / 3만 엣지**를 사용하지만, 이것만으로 운영 환경의 FPS나 메모리 성능을 보장하지 않습니다.
 
 - [RC1 검증 체크리스트 및 남은 출시 조건](docs/release-rc1.md)

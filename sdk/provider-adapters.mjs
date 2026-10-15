@@ -95,7 +95,7 @@ export function createProviderObservers({
       traceClient.node({
         id: `${prefix}-request`, kind: 'prompt', label: `${service} API 요청`,
         detail: '요청이 발생했다는 사실만 기록했습니다. 질문 본문은 수집하지 않습니다.',
-        createdAt: startedAt, evidence: 'observed', traceId: runId, traceId: runId,
+        createdAt: startedAt, evidence: 'observed', traceId: runId,
       }),
       traceClient.node({
         id: `${prefix}-model`, kind: 'model', label: `${service} · ${allowedModel(model)}`,

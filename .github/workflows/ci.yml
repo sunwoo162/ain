@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run test
       - run: npm run smoke:release
       - run: npm run bench:graph
@@ -29,5 +29,4 @@ jobs:
           path: |
             test-results/
             playwright-report/
-            package-lock.json
           if-no-files-found: ignore

@@ -71,11 +71,11 @@ CI에서 Chromium 자동 브라우저 테스트는 첫 사용 안내, 전체 UI,
 - **PR #14:** [V1.0 RC1 전체 통합](https://github.com/sunwoo162/ain/pull/14) — 대상 `main`, Draft, 아직 병합하지 않음
 - 마지막으로 확인된 CI 통과: [38652293160](https://github.com/sunwoo162/ain/actions/runs/38652293160) (문서·워크플로 변경 이후에는 해당 최신 커밋도 다시 검증)
 - 기존 PR 10개가 모두 현재 RC1 브랜치의 조상이며 누락된 커밋은 없습니다.
-- **의존성 잠금 파일은 아직 저장소에 고정되지 않았습니다.** CI에서 생성되는 `package-lock.json`를 확보해 재현성 검증이 필요합니다. 이것은 정식 릴리스 전 개선 항목입니다.
+- **의존성 잠금 파일 `package-lock.json`을 RC1 브랜치에 추가합니다.** 이후 CI는 `npm ci`로 고정 버전을 사용하며, 실제 Windows 환경에서 재설치가 성공했습니다.
 
 ## 실제 Ollama 검증 절차 (사용자의 로컬 환경)
 
-1. Ollama를 설치하고 `ollama pull llama3.2`로 사용할 모델을 준비합니다.
+1. Ollama를 설치하고 `ollama list`로 설치된 모델을 확인합니다. 이번 검증에는 `qwen2.5:1.5b`가 사용됐습니다. 해당 모델이 없으면 다른 설치된 모델을 `OLLAMA_MODEL` 환경 변수로 선택합니다.
 2. 첫 터미널에서 `MINDTRACE_TOKEN`을 설정하여 `npm run collector`를 실행하고, 둘째 터미널에서 `npm run dev`로 웹 UI를 켭니다.
 3. 의심암귀의 Live connect에 수집기 주소와 토큰을 입력합니다.
 4. 셋째 터미널에서 같은 수집기 토큰과 `OLLAMA_MODEL=llama3.2`를 설정한 뒤 `node examples/observe-providers.mjs ollama`를 실행합니다.
@@ -83,15 +83,19 @@ CI에서 Chromium 자동 브라우저 테스트는 첫 사용 안내, 전체 UI,
 
 모델 다운로드는 네트워크·디스크 용량이 필요하므로 **실제 모델 호출은 자동 CI에서 수행하지 않습니다**.
 
+별도 수집기를 자동으로 생성해 비밀값 저장 여부까지 검증하려면 `npm run smoke:ollama`를 실행하세요. PC의 실제 UI까지 검증하려면 PowerShell에서 `$env:RUN_REAL_OLLAMA_E2E='1'; npx playwright test tests/browser/ollama-live.spec.ts`를 실행합니다. 두 테스트 모두 로컬 Ollama만 호출하고 일회용 임시 collector 데이터를 삭제합니다.
+
 ## 정식 V1.0 전 릴리스 차단 조건
 
 - [x] 통합 PR을 `main` 대상으로 변경한 커밋의 테스트·빌드·브라우저 E2E 통과: [GitHub Actions](https://github.com/sunwoo162/ain/actions/runs/38652293160)
-- [ ] 실제 Ollama 1회 이상 정상 호출 및 실제 그래프 동기화 수동 검증
+- [x] 로컬 PC의 Ollama `qwen2.5:1.5b` 실제 비스트리밍·스트리밍 호출과 별도 수집기의 7개 노드·5개 관계·trace ID 2개·비밀 원문 미저장 확인 (`npm run smoke:ollama`)
+- [x] 데스크톱 Chromium에서 실제 Ollama 응답 → 로컬 collector → 의심암귀 그래프 동기화 확인 (`RUN_REAL_OLLAMA_E2E=1` 선택형 Playwright 테스트 통과)
 - [ ] 실기기에서 데스크톱·모바일 키보드/스크린리더 및 인터랙션 확인
 - [ ] 대형 10,000노드 브라우저 CPU·FPS·메모리 기준 측정과 이슈 검토
 - [ ] 개인정보·토큰 취급 및 수집기 로컬 파일 권한에 대한 인간 리뷰 (기본 자동 401/403/413/파일 모드 검사는 통과)
 - [x] PR #1 및 #5~#13을 PR #14로 통합하고, 각 기존 PR에 안내 문구 추가 후 종료 (이력 보존, 미병합)
-- [ ] 버전 고정용 lockfile 추가 및 재현 가능한 설치 확인
+- [x] `package-lock.json` 생성 및 `npm ci` 재현 설치 확인 (로컬 Windows)
+- [ ] CI 최신 커밋에서 `npm ci`를 사용한 재현 설치 재검증
 - [ ] 릴리스 승인 후에만 `main` 병합, `v1.0.0` 태그, 첫 배포
 
 RC1은 테스트를 통과해도 자동으로 정식 릴리스하지 않습니다.
